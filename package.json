@@ -6,13 +6,24 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint --cache .",
+    "lint:fix": "eslint --cache --fix .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@pierre/ecs": "file:../Entity-Cornponent-System-Engine"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^8.0.0",
+    "eslint": "^10.2.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import-x": "^4.16.2",
+    "jiti": "^2.7.0",
+    "jsdom": "^29.0.1",
     "typescript": "^5.9.3",
-    "vite": "^8.0.3"
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   }
 }

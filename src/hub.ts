@@ -53,8 +53,12 @@ export function startHub(
     card.style.cssText = 'padding:16px 20px;text-align:left;font:inherit;color:#fff;'
       + 'background:#1a4a3a;border:1px solid #3fbf8f;border-radius:10px;cursor:pointer;'
       + 'transition:background 0.15s';
-    card.addEventListener('pointerenter', () => { card.style.background = '#1f6b4f'; });
-    card.addEventListener('pointerleave', () => { card.style.background = '#1a4a3a'; });
+    card.addEventListener('pointerenter', () => {
+      card.style.background = '#1f6b4f';
+    });
+    card.addEventListener('pointerleave', () => {
+      card.style.background = '#1a4a3a';
+    });
 
     const name = document.createElement('div');
     name.textContent = game.name;
@@ -78,4 +82,3 @@ export function startHub(
   root.append(list);
   container.append(root);
 }
-

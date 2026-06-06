@@ -13,8 +13,8 @@
 import type { EntityId } from '@pierre/ecs';
 import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
-import type { Card, GameState, PileRef } from './game';
 import type { CardAudio } from '../../shared';
+import type { Card, GameState, PileRef } from './game';
 
 import { EcsWorld } from '@pierre/ecs';
 import { projectPointer } from '@pierre/ecs/modules/input';

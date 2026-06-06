@@ -11,12 +11,12 @@ import type { EcsWorld } from '@pierre/ecs';
 import type { Canvas2DRenderContext } from '@pierre/ecs/modules/render-canvas2d';
 import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
+import type { Card, GameState, PileRef } from './game';
+
 import { Canvas2DRenderer, RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { CARDS_ATLAS, BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARD_H, CARD_W } from '../../shared';
-
-import type { Card, GameState, PileRef } from './game';
+import { BACKS_ATLAS, CARD_BACK_FRAME, CARD_H, CARD_W, cardFrame, CARDS_ATLAS } from '../../shared';
 import { CANVAS_H, CANVAS_W, cardPosition, slotPosition } from './game';
 
 /** Render-order bump applied to the dragged stack so it floats on top. */

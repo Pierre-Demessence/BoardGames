@@ -9,7 +9,9 @@
 
 import type { EntityId } from '@pierre/ecs';
 
-import { type Card, makeDeck, shuffleDeck, suitColor } from '../../shared';
+import type { Card } from '../../shared';
+
+import { CARD_H, CARD_W, makeDeck, shuffleDeck, suitColor } from '../../shared';
 
 export type { Card } from '../../shared';
 
@@ -27,10 +29,6 @@ export interface GameState {
   waste: Card[];
   won: boolean;
 }
-
-// --- Board layout (canvas world coordinates, 1:1 with device pixels) ---
-
-import { CARD_H, CARD_W } from '../../shared';
 
 export { CARD_H, CARD_W };
 

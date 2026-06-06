@@ -7,9 +7,9 @@
 
 import { AssetLoader } from '@pierre/ecs/modules/asset-loader';
 
+import { startHub } from './hub';
 import { loadCardAtlases } from './shared/atlas';
 import { loadCardAudio } from './shared/audio';
-import { startHub } from './hub';
 
 export function start(container: HTMLElement): () => void {
   container.innerHTML = '';

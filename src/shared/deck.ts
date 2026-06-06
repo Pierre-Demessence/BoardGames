@@ -1,7 +1,9 @@
 import type { EntityId } from '@pierre/ecs';
+
 import type { Suit } from './cards';
 
 import { shuffle } from '@pierre/ecs/modules/rng';
+
 import { RANKS, SUITS } from './cards';
 
 export interface Card {
