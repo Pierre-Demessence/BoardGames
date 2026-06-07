@@ -1,13 +1,5 @@
 /**
- * Solitaire (Klondike, draw-1) — game entry point.
- *
- * Receives pre-loaded shared resources (atlases, audio) from the hub so
- * all card games share the same card sprites and SFX.
- *
- * Input:
- * - click the stock to deal to the waste (empty stock recycles the waste),
- * - drag a face-up card (and the run beneath it) between tableau columns,
- * - drag a single card to a foundation, or double-click to auto-send it.
+ * Solitaire (Klondike, draw-1) — game entry point with dynamic layout.
  */
 
 import type { EntityId } from '@pierre/ecs';
@@ -25,13 +17,10 @@ import { playCardSfx } from '../../shared';
 import {
   canDropOnFoundation,
   canDropOnTableau,
-  CANVAS_H,
-  CANVAS_W,
-  CARD_H,
-  CARD_W,
   cardPosition,
   dealNewGame,
   findFoundationFor,
+  initLayout,
   isWon,
   pileArray,
   slotPosition,
@@ -43,6 +32,8 @@ export interface GameResources {
   audio: CardAudio;
   audioCtx: AudioContext;
 }
+
+const BAR_HEIGHT = 44;
 
 interface Drag {
   cards: Card[];
@@ -62,27 +53,30 @@ function makeWorld(): EcsWorld {
 }
 
 export function start(container: HTMLElement, resources: GameResources, onBack: () => void): () => void {
+  const containerRect = container.getBoundingClientRect();
+  const layout = initLayout(containerRect.width, containerRect.height - BAR_HEIGHT);
+
   container.innerHTML = '';
 
   const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
-  canvas.style.cssText = `display:block;width:${CANVAS_W}px;height:${CANVAS_H}px;`
+  canvas.width = layout.canvasW;
+  canvas.height = layout.canvasH;
+  canvas.style.cssText = `display:block;width:${layout.canvasW}px;height:${layout.canvasH}px;`
     + 'margin:0 auto;border-radius:10px;touch-action:none;cursor:pointer';
   const ctx2d = canvas.getContext('2d')!;
 
   const bar = document.createElement('div');
   bar.style.cssText = 'display:flex;gap:12px;align-items:center;justify-content:center;'
-    + 'padding:10px;font:13px system-ui;color:#cde';
+    + `padding:8px 10px;font:13px system-ui;color:#cde;flex-shrink:0;height:${BAR_HEIGHT}px;box-sizing:border-box`;
 
   const backBtn = document.createElement('button');
   backBtn.textContent = '← Games';
-  backBtn.style.cssText = 'padding:6px 14px;font:inherit;font-weight:600;color:#cde;'
+  backBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#cde;'
     + 'background:#2a5a4a;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
 
   const newDealBtn = document.createElement('button');
   newDealBtn.textContent = 'New deal';
-  newDealBtn.style.cssText = 'padding:6px 14px;font:inherit;font-weight:600;color:#fff;'
+  newDealBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#fff;'
     + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
 
   const hint = document.createElement('span');
@@ -102,7 +96,7 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
 
   const newDeal = (): void => {
     world = makeWorld();
-    state = dealNewGame((): EntityId => world.createEntity());
+    state = dealNewGame((): EntityId => world.createEntity(), layout);
     drag = null;
     hint.textContent = 'Click the stock to deal · drag to move · double-click to send to a foundation';
   };
@@ -122,7 +116,7 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     void audioCtx.resume();
     const point = toWorld(event);
 
-    if (inSlot(point, slotPosition({ index: 0, kind: 'stock' }))) {
+    if (inSlot(state, point, slotPosition(state.layout, { index: 0, kind: 'stock' }))) {
       dealFromStock(state, playSfx);
       return;
     }
@@ -187,7 +181,6 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     finishMove(state);
   };
 
-  // Back button returns to hub
   const onBackClick = (): void => {
     disposed = true;
     abort.abort();
@@ -216,9 +209,10 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     d: Drag,
     sfx: (kind: 'place' | 'slide') => void,
   ): void {
+    const { layout: lay } = s;
     const center = {
-      x: d.pointerX - d.grabX + CARD_W / 2,
-      y: d.pointerY - d.grabY + CARD_H / 2,
+      x: d.pointerX - d.grabX + lay.cardW / 2,
+      y: d.pointerY - d.grabY + lay.cardH / 2,
     };
     const target = dropTarget(s, center, d);
     if (!target) {
@@ -273,9 +267,10 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   };
 }
 
-function inSlot(point: { x: number; y: number }, slot: { x: number; y: number }): boolean {
-  return point.x >= slot.x && point.x <= slot.x + CARD_W
-    && point.y >= slot.y && point.y <= slot.y + CARD_H;
+function inSlot(state: GameState, point: { x: number; y: number }, slot: { x: number; y: number }): boolean {
+  const { cardH, cardW } = state.layout;
+  return point.x >= slot.x && point.x <= slot.x + cardW
+    && point.y >= slot.y && point.y <= slot.y + cardH;
 }
 
 function pickCard(
@@ -285,17 +280,17 @@ function pickCard(
   for (let t = 0; t < 7; t++) {
     const column = state.tableau[t]!;
     for (let i = column.length - 1; i >= 0; i--) {
-      if (inSlot(point, cardPosition(state, { index: t, kind: 'tableau' }, i)))
+      if (inSlot(state, point, cardPosition(state, { index: t, kind: 'tableau' }, i)))
         return { index: i, pile: { index: t, kind: 'tableau' } };
     }
   }
   if (state.waste.length > 0
-    && inSlot(point, slotPosition({ index: 0, kind: 'waste' }))) {
+    && inSlot(state, point, slotPosition(state.layout, { index: 0, kind: 'waste' }))) {
     return { index: state.waste.length - 1, pile: { index: 0, kind: 'waste' } };
   }
   for (let f = 0; f < 4; f++) {
     const pile = state.foundations[f]!;
-    if (pile.length > 0 && inSlot(point, slotPosition({ index: f, kind: 'foundation' })))
+    if (pile.length > 0 && inSlot(state, point, slotPosition(state.layout, { index: f, kind: 'foundation' })))
       return { index: pile.length - 1, pile: { index: f, kind: 'foundation' } };
   }
   return null;
@@ -306,10 +301,12 @@ function dropTarget(
   center: { x: number; y: number },
   drag: Drag,
 ): PileRef | null {
+  const { layout } = state;
+  const { cardH, cardW } = layout;
   if (drag.cards.length === 1) {
     for (let f = 0; f < 4; f++) {
       const pileRef: PileRef = { index: f, kind: 'foundation' };
-      if (inSlot(center, slotPosition(pileRef))
+      if (inSlot(state, center, slotPosition(layout, pileRef))
         && canDropOnFoundation(drag.cards[0]!, state.foundations[f]!)) {
         return pileRef;
       }
@@ -318,13 +315,13 @@ function dropTarget(
   for (let t = 0; t < 7; t++) {
     if (t === drag.from.index && drag.from.kind === 'tableau')
       continue;
-    const slot = slotPosition({ index: t, kind: 'tableau' });
+    const slot = slotPosition(layout, { index: t, kind: 'tableau' });
     const column = state.tableau[t]!;
     const bottom = column.length === 0
-      ? slot.y + CARD_H
-      : cardPosition(state, { index: t, kind: 'tableau' }, column.length - 1).y + CARD_H;
-    const inColumn = center.x >= slot.x && center.x <= slot.x + CARD_W
-      && center.y >= slot.y && center.y <= bottom + 40;
+      ? slot.y + cardH
+      : cardPosition(state, { index: t, kind: 'tableau' }, column.length - 1).y + cardH;
+    const inColumn = center.x >= slot.x && center.x <= slot.x + cardW
+      && center.y >= slot.y && center.y <= bottom + cardH * 0.4;
     if (inColumn && canDropOnTableau(drag.cards[0]!, column))
       return { index: t, kind: 'tableau' };
   }

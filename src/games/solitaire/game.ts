@@ -1,17 +1,17 @@
 /**
  * Klondike Solitaire game state, layout, and move rules.
  *
- * The state is plain data: piles are arrays of `Card`, and each `Card`
- * carries the `EntityId` of its sprite. Rendering and input live in
- * `render.ts` / `index.ts`; this module is pure game logic + board layout
- * so the rules are easy to reason about in isolation.
+ * Uses dynamic layout via {@link initLayout} — call once before dealing.
+ * All position functions read layout from the game state.
  */
 
 import type { EntityId } from '@pierre/ecs';
 
 import type { Card } from '../../shared';
+import type { CardLayout } from '../../shared/layout';
 
-import { CARD_H, CARD_W, makeDeck, shuffleDeck, suitColor } from '../../shared';
+import { makeDeck, shuffleDeck, suitColor } from '../../shared';
+import { computeLayout } from '../../shared/layout';
 
 export type { Card } from '../../shared';
 
@@ -24,59 +24,66 @@ export interface PileRef {
 
 export interface GameState {
   foundations: Card[][];
+  layout: CardLayout;
   stock: Card[];
   tableau: Card[][];
   waste: Card[];
   won: boolean;
 }
 
-export { CARD_H, CARD_W };
+const SOLITAIRE_SLOTS = 7;
 
-export const CANVAS_W = 700;
-export const CANVAS_H = 720;
-
-const MARGIN_X = 22;
-const TOP_Y = 20;
-const TABLEAU_Y = TOP_Y + CARD_H + 24;
-const COL_PITCH = 96;
-const FAN_FACE_UP = 24;
-const FAN_FACE_DOWN = 10;
-
-/** Column 0 stock, 1 waste, 3–6 foundations, all 7 used for tableau. */
-const FOUNDATION_COL = [3, 4, 5, 6];
-
-function columnX(col: number): number {
-  return MARGIN_X + col * COL_PITCH;
+/** Compute the layout for the current viewport. Call before dealing. */
+export function initLayout(containerW: number, containerH: number): CardLayout {
+  return computeLayout(containerW, containerH, SOLITAIRE_SLOTS);
 }
 
-/** Top-left of a pile's base slot (the empty placeholder position). */
-export function slotPosition(pile: PileRef): { x: number; y: number } {
+// --- Board layout ---
+
+const FAN_FACE_UP_RATIO = 0.3;
+const FAN_FACE_DOWN_RATIO = 0.125;
+const TABLEAU_Y_GAP = 0.3; // fraction of card height between top row and tableau
+
+function tableauY(layout: CardLayout): number {
+  return layout.topY + layout.cardH + Math.round(layout.cardH * TABLEAU_Y_GAP);
+}
+
+const FOUNDATION_COL = [3, 4, 5, 6];
+
+function columnX(layout: CardLayout, col: number): number {
+  return layout.marginX + col * layout.colPitch;
+}
+
+export function slotPosition(layout: CardLayout, pile: PileRef): { x: number; y: number } {
   switch (pile.kind) {
     case 'foundation':
-      return { x: columnX(FOUNDATION_COL[pile.index]!), y: TOP_Y };
+      return { x: columnX(layout, FOUNDATION_COL[pile.index]!), y: layout.topY };
     case 'stock':
-      return { x: columnX(0), y: TOP_Y };
+      return { x: columnX(layout, 0), y: layout.topY };
     case 'tableau':
-      return { x: columnX(pile.index), y: TABLEAU_Y };
+      return { x: columnX(layout, pile.index), y: tableauY(layout) };
     case 'waste':
-      return { x: columnX(1), y: TOP_Y };
+      return { x: columnX(layout, 1), y: layout.topY };
   }
 }
 
-/** Top-left of the card at `indexInPile` within `pile`. */
 export function cardPosition(
   state: GameState,
   pile: PileRef,
   indexInPile: number,
 ): { x: number; y: number } {
-  const base = slotPosition(pile);
+  const { layout } = state;
+  const base = slotPosition(layout, pile);
   if (pile.kind !== 'tableau')
     return base;
 
   const column = state.tableau[pile.index]!;
   let y = base.y;
-  for (let i = 0; i < indexInPile; i++)
-    y += column[i]!.faceUp ? FAN_FACE_UP : FAN_FACE_DOWN;
+  for (let i = 0; i < indexInPile; i++) {
+    y += column[i]!.faceUp
+      ? Math.round(layout.cardH * FAN_FACE_UP_RATIO)
+      : Math.round(layout.cardH * FAN_FACE_DOWN_RATIO);
+  }
   return { x: base.x, y };
 }
 
@@ -95,7 +102,7 @@ export function pileArray(state: GameState, pile: PileRef): Card[] {
 
 // --- Deck construction + deal ---
 
-export function dealNewGame(createEntity: () => EntityId): GameState {
+export function dealNewGame(createEntity: () => EntityId, layout: CardLayout): GameState {
   const deck = makeDeck(createEntity);
   shuffleDeck(deck);
 
@@ -110,6 +117,7 @@ export function dealNewGame(createEntity: () => EntityId): GameState {
 
   return {
     foundations: [[], [], [], []],
+    layout,
     stock: deck,
     tableau,
     waste: [],
@@ -134,7 +142,6 @@ export function canDropOnTableau(movingFirst: Card, column: Card[]): boolean {
     && movingFirst.rank === top.rank - 1;
 }
 
-/** First legal foundation index for a single card, or -1 if none. */
 export function findFoundationFor(state: GameState, card: Card): number {
   for (let i = 0; i < state.foundations.length; i++) {
     if (canDropOnFoundation(card, state.foundations[i]!))

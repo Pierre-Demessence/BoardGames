@@ -1,11 +1,5 @@
 /**
- * Spider Solitaire (1-suit) — game entry point.
- *
- * Receives pre-loaded shared resources (atlases, audio) from the hub.
- *
- * Input:
- * - click the stock to deal 1 card to each tableau column,
- * - drag a face-up card (and the same-suit run beneath it) between columns.
+ * Spider Solitaire (1-suit) — game entry point with dynamic layout.
  */
 
 import type { EntityId } from '@pierre/ecs';
@@ -23,22 +17,21 @@ import { playCardSfx } from '../../shared';
 import {
   canDragRun,
   canDropOnColumn,
-  CANVAS_H,
-  CANVAS_W,
-  CARD_H,
-  CARD_W,
   cardPosition,
   COLUMNS,
   columnSlotPosition,
   dealFromStock,
   dealNewGame,
+  initLayout,
   isWon,
   removeCompletedRuns,
-  STOCK_DECK_H,
-  STOCK_DECK_W,
+  STOCK_DECK_H_RATIO,
+  STOCK_DECK_W_RATIO,
   stockSlotPosition,
 } from './game';
 import { renderFrame, syncLayout } from './render';
+
+const BAR_HEIGHT = 44;
 
 interface Drag {
   cards: Card[];
@@ -59,27 +52,30 @@ function makeWorld(): EcsWorld {
 }
 
 export function start(container: HTMLElement, resources: GameResources, onBack: () => void): () => void {
+  const containerRect = container.getBoundingClientRect();
+  const layout = initLayout(containerRect.width, containerRect.height - BAR_HEIGHT);
+
   container.innerHTML = '';
 
   const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
-  canvas.style.cssText = `display:block;width:${CANVAS_W}px;height:${CANVAS_H}px;`
+  canvas.width = layout.canvasW;
+  canvas.height = layout.canvasH;
+  canvas.style.cssText = `display:block;width:${layout.canvasW}px;height:${layout.canvasH}px;`
     + 'margin:0 auto;border-radius:10px;touch-action:none;cursor:pointer';
   const ctx2d = canvas.getContext('2d')!;
 
   const bar = document.createElement('div');
   bar.style.cssText = 'display:flex;gap:12px;align-items:center;justify-content:center;'
-    + 'padding:10px;font:13px system-ui;color:#cde;';
+    + `padding:8px 10px;font:13px system-ui;color:#cde;flex-shrink:0;height:${BAR_HEIGHT}px;box-sizing:border-box`;
 
   const backBtn = document.createElement('button');
   backBtn.textContent = '← Games';
-  backBtn.style.cssText = 'padding:6px 14px;font:inherit;font-weight:600;color:#cde;'
+  backBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#cde;'
     + 'background:#2a5a4a;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
 
   const newDealBtn = document.createElement('button');
   newDealBtn.textContent = 'New deal';
-  newDealBtn.style.cssText = 'padding:6px 14px;font:inherit;font-weight:600;color:#fff;'
+  newDealBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#fff;'
     + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
 
   const hint = document.createElement('span');
@@ -99,7 +95,7 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
 
   const newDeal = (): void => {
     world = makeWorld();
-    state = dealNewGame((): EntityId => world.createEntity());
+    state = dealNewGame((): EntityId => world.createEntity(), layout);
     drag = null;
     hint.textContent = 'Click the stock to deal · drag cards to build descending runs';
   };
@@ -119,25 +115,21 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     void audioCtx.resume();
     const point = toWorld(event);
 
-    // Click on stock pile
-    const stockPos = stockSlotPosition();
-    if (point.x >= stockPos.x && point.x <= stockPos.x + STOCK_DECK_W
-      && point.y >= stockPos.y && point.y <= stockPos.y + STOCK_DECK_H) {
+    const stockPos = stockSlotPosition(state.layout);
+    const sdw = Math.round(state.layout.cardW * STOCK_DECK_W_RATIO);
+    const sdh = Math.round(state.layout.cardH * STOCK_DECK_H_RATIO);
+    if (point.x >= stockPos.x && point.x <= stockPos.x + sdw
+      && point.y >= stockPos.y && point.y <= stockPos.y + sdh) {
       if (state.stock.length >= COLUMNS && dealFromStock(state)) {
         playSfx('slide');
-        // Check for completed runs after dealing
         const { count, removedIds } = removeCompletedRuns(state);
         for (const id of removedIds) world.destroyEntity(id);
         state.completed += count;
         finishMove(state);
-        hint.textContent = state.stock.length > 0
-          ? `Stock: ${state.stock.length} cards remaining`
-          : 'No cards left in stock';
       }
       return;
     }
 
-    // Pick a card from tableau
     const hit = pickCard(state, point);
     if (!hit)
       return;
@@ -203,9 +195,10 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     d: Drag,
     sfx: (kind: 'place' | 'slide') => void,
   ): void {
+    const { layout: lay } = s;
     const center = {
-      x: d.pointerX - d.grabX + CARD_W / 2,
-      y: d.pointerY - d.grabY + CARD_H / 2,
+      x: d.pointerX - d.grabX + lay.cardW / 2,
+      y: d.pointerY - d.grabY + lay.cardH / 2,
     };
     const targetCol = findTargetColumn(s, center, d);
 
@@ -214,19 +207,14 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
       return;
     }
 
-    // Remove cards from source
     const source = s.tableau[d.fromCol]!;
     source.splice(d.fromIndex, d.cards.length);
-
-    // Add to target
     s.tableau[targetCol]!.push(...d.cards);
 
-    // Flip exposed top card of source
     const newTop = source.at(-1);
     if (newTop && !newTop.faceUp)
       newTop.faceUp = true;
 
-    // Check for completed runs anywhere
     const { count, removedIds } = removeCompletedRuns(s);
     for (const id of removedIds) world.destroyEntity(id);
     s.completed += count;
@@ -273,9 +261,10 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   };
 }
 
-function inSlot(point: { x: number; y: number }, slot: { x: number; y: number }): boolean {
-  return point.x >= slot.x && point.x <= slot.x + CARD_W
-    && point.y >= slot.y && point.y <= slot.y + CARD_H;
+function inSlot(state: GameState, point: { x: number; y: number }, slot: { x: number; y: number }): boolean {
+  const { cardH, cardW } = state.layout;
+  return point.x >= slot.x && point.x <= slot.x + cardW
+    && point.y >= slot.y && point.y <= slot.y + cardH;
 }
 
 function pickCard(
@@ -285,8 +274,7 @@ function pickCard(
   for (let col = COLUMNS - 1; col >= 0; col--) {
     const column = state.tableau[col]!;
     for (let i = column.length - 1; i >= 0; i--) {
-      const pos = cardPosition(state, col, i);
-      if (inSlot(point, pos))
+      if (inSlot(state, point, cardPosition(state, col, i)))
         return { col, index: i };
     }
   }
@@ -298,18 +286,19 @@ function findTargetColumn(
   center: { x: number; y: number },
   drag: Drag,
 ): number | null {
-  // Check each column from right to left for visual layering
+  const { layout } = state;
+  const { cardH, cardW } = layout;
   for (let col = COLUMNS - 1; col >= 0; col--) {
     if (col === drag.fromCol)
       continue;
     const column = state.tableau[col]!;
-    const slot = columnSlotPosition(col);
+    const slot = columnSlotPosition(layout, col);
     const bottom = column.length === 0
-      ? slot.y + CARD_H
-      : cardPosition(state, col, column.length - 1).y + CARD_H;
+      ? slot.y + cardH
+      : cardPosition(state, col, column.length - 1).y + cardH;
 
-    const inCol = center.x >= slot.x && center.x <= slot.x + CARD_W
-      && center.y >= slot.y && center.y <= bottom + 40;
+    const inCol = center.x >= slot.x && center.x <= slot.x + cardW
+      && center.y >= slot.y && center.y <= bottom + cardH * 0.4;
 
     if (inCol && canDropOnColumn(drag.cards[0]!, column))
       return col;

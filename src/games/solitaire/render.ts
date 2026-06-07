@@ -1,34 +1,24 @@
 /**
- * Board rendering for Solitaire (Klondike).
- *
- * Each card owns a sprite entity (`PositionDef` + `RenderableDef` +
- * `RenderOrderDef`). `syncLayout` rewrites those components from the game
- * state every frame — and, when a stack is being dragged, lifts those cards
- * to the pointer with a large `RenderOrderDef` bump in the same pass.
+ * Board rendering for Solitaire (Klondike) — dynamic layout.
  */
 
 import type { EcsWorld } from '@pierre/ecs';
 import type { Canvas2DRenderContext } from '@pierre/ecs/modules/render-canvas2d';
 import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
+import type { CardLayout } from '../../shared/layout';
 import type { Card, GameState, PileRef } from './game';
 
 import { Canvas2DRenderer, RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BACKS_ATLAS, CARD_BACK_FRAME, CARD_H, CARD_W, cardFrame, CARDS_ATLAS } from '../../shared';
-import { CANVAS_H, CANVAS_W, cardPosition, slotPosition } from './game';
+import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS } from '../../shared';
+import { cardPosition, slotPosition } from './game';
 
-/** Render-order bump applied to the dragged stack so it floats on top. */
 export const DRAG_ORDER_BUMP = 100_000;
 
-/** Vertical fan offset between cards in a dragged run. */
-const DRAG_FAN = 24;
+const DRAG_FAN_RATIO = 0.3; // vertical fan between dragged cards as fraction of card height
 
-/**
- * The cards currently held by the pointer, plus the grab/pointer geometry
- * needed to position them. `syncLayout` lifts these above every pile.
- */
 export interface DragOverride {
   cards: Card[];
   grabX: number;
@@ -39,8 +29,8 @@ export interface DragOverride {
 
 const renderer = new Canvas2DRenderer();
 
-/** Rewrite every card's sprite components from the current game state. */
 export function syncLayout(world: EcsWorld, state: GameState, drag?: DragOverride | null): void {
+  const { layout } = state;
   const positions = world.getStore(PositionDef);
   const renderables = world.getStore(RenderableDef);
   const orders = world.getStore(RenderOrderDef);
@@ -52,8 +42,8 @@ export function syncLayout(world: EcsWorld, state: GameState, drag?: DragOverrid
     renderables.set(card.id, {
       anchor: 'top-left',
       atlas: card.faceUp ? CARDS_ATLAS : BACKS_ATLAS,
-      dh: CARD_H,
-      dw: CARD_W,
+      dh: layout.cardH,
+      dw: layout.cardW,
       frame: card.faceUp ? cardFrame(card.suit, card.rank) : CARD_BACK_FRAME,
       kind: 'sprite',
     });
@@ -68,10 +58,11 @@ export function syncLayout(world: EcsWorld, state: GameState, drag?: DragOverrid
     pile.forEach((card, i) => place(card, { index: t, kind: 'tableau' }, i)));
 
   if (drag) {
+    const dragFan = Math.round(layout.cardH * DRAG_FAN_RATIO);
     drag.cards.forEach((card, i) => {
       positions.set(card.id, {
         x: drag.pointerX - drag.grabX,
-        y: drag.pointerY - drag.grabY + i * DRAG_FAN,
+        y: drag.pointerY - drag.grabY + i * dragFan,
       });
       orders.set(card.id, { value: DRAG_ORDER_BUMP + i });
     });
@@ -84,51 +75,56 @@ export function renderFrame(
   atlases: TextureAtlasRegistry,
   state: GameState,
 ): void {
+  const { layout } = state;
   ctx2d.fillStyle = '#0b3d2e';
-  ctx2d.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx2d.fillRect(0, 0, layout.canvasW, layout.canvasH);
 
-  drawSlot(ctx2d, slotPosition({ index: 0, kind: 'stock' }), state.stock.length === 0 ? '↻' : '');
-  drawSlot(ctx2d, slotPosition({ index: 0, kind: 'waste' }), '');
+  drawSlot(ctx2d, layout, slotPosition(layout, { index: 0, kind: 'stock' }), state.stock.length === 0 ? '↻' : '');
+  drawSlot(ctx2d, layout, slotPosition(layout, { index: 0, kind: 'waste' }), '');
   for (let f = 0; f < 4; f++)
-    drawSlot(ctx2d, slotPosition({ index: f, kind: 'foundation' }), 'A');
+    drawSlot(ctx2d, layout, slotPosition(layout, { index: f, kind: 'foundation' }), 'A');
   for (let t = 0; t < 7; t++) {
     if (state.tableau[t]!.length === 0)
-      drawSlot(ctx2d, slotPosition({ index: t, kind: 'tableau' }), '');
+      drawSlot(ctx2d, layout, slotPosition(layout, { index: t, kind: 'tableau' }), '');
   }
 
   const renderCtx: Canvas2DRenderContext = { atlases, ctx2d, world };
   renderer.render(renderCtx);
 
   if (state.won)
-    drawBanner(ctx2d);
+    drawBanner(ctx2d, layout);
 }
 
 function drawSlot(
   ctx2d: CanvasRenderingContext2D,
+  layout: CardLayout,
   pos: { x: number; y: number },
   label: string,
 ): void {
-  roundRect(ctx2d, pos.x, pos.y, CARD_W, CARD_H, 8);
+  const r = Math.round(layout.cardW * 0.1);
+  roundRect(ctx2d, pos.x, pos.y, layout.cardW, layout.cardH, r);
   ctx2d.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx2d.lineWidth = 2;
+  ctx2d.lineWidth = Math.max(1, Math.round(layout.cardW / 40));
   ctx2d.stroke();
   if (label !== '') {
     ctx2d.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx2d.font = '28px system-ui';
+    ctx2d.font = `${Math.round(layout.cardH * 0.25)}px system-ui`;
     ctx2d.textAlign = 'center';
     ctx2d.textBaseline = 'middle';
-    ctx2d.fillText(label, pos.x + CARD_W / 2, pos.y + CARD_H / 2);
+    ctx2d.fillText(label, pos.x + layout.cardW / 2, pos.y + layout.cardH / 2);
   }
 }
 
-function drawBanner(ctx2d: CanvasRenderingContext2D): void {
+function drawBanner(ctx2d: CanvasRenderingContext2D, layout: CardLayout): void {
+  const cy = layout.canvasH / 2;
+  const bh = Math.round(layout.cardH * 1.1);
   ctx2d.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx2d.fillRect(0, CANVAS_H / 2 - 60, CANVAS_W, 120);
+  ctx2d.fillRect(0, cy - bh / 2, layout.canvasW, bh);
   ctx2d.fillStyle = '#ffe14d';
-  ctx2d.font = '700 56px system-ui';
+  ctx2d.font = `700 ${Math.round(bh * 0.5)}px system-ui`;
   ctx2d.textAlign = 'center';
   ctx2d.textBaseline = 'middle';
-  ctx2d.fillText('You win!', CANVAS_W / 2, CANVAS_H / 2);
+  ctx2d.fillText('You win!', layout.canvasW / 2, cy);
 }
 
 function roundRect(

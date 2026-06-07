@@ -1,97 +1,95 @@
 /**
  * Spider Solitaire (1-suit) — game state, layout, and move rules.
  *
- * The deck is 104 cards (8 copies of each rank A→K, all the same suit).
- * Cards are dealt into 10 tableau columns; the stock deals one card to
- * each column on click. Completed K→A runs auto-remove.
+ * Dynamic layout: call {@link initLayout} once before dealing.
  */
 
 import type { EntityId } from '@pierre/ecs';
 
 import type { Card } from '../../shared';
+import type { CardLayout } from '../../shared/layout';
 
-import { CARD_H, CARD_W, shuffleDeck } from '../../shared';
+import { shuffleDeck } from '../../shared';
+import { computeLayout } from '../../shared/layout';
 
 export type { Card } from '../../shared';
 
 export interface GameState {
   completed: number;
+  layout: CardLayout;
   stock: Card[];
   tableau: Card[][];
   won: boolean;
 }
 
+const SPIDER_SLOTS = 10;
+
+export function initLayout(containerW: number, containerH: number): CardLayout {
+  return computeLayout(containerW, containerH, SPIDER_SLOTS);
+}
+
 // --- Board layout ---
 
-export { CARD_H, CARD_W };
+const FAN_FACE_UP_RATIO = 0.3;
+const FAN_FACE_DOWN_RATIO = 0.125;
+const TABLEAU_Y_GAP = 0.3;
 
-export const CANVAS_W = 1040;
-export const CANVAS_H = 720;
+export { SPIDER_SLOTS as COLUMNS };
 
-const MARGIN_X = 28;
-const TOP_Y = 20;
-const TABLEAU_Y = TOP_Y + CARD_H + 24;
-const COL_PITCH = 96;
-const FAN_FACE_UP = 24;
-const FAN_FACE_DOWN = 10;
-const COLUMNS = 10;
-
-export { COLUMNS };
-
-// --- Layout helpers ---
-
-/** Position and size of the stock deck visual. */
-export function stockSlotPosition(): { x: number; y: number } {
-  return { x: MARGIN_X, y: TOP_Y };
+function tableauY(layout: CardLayout): number {
+  return layout.topY + layout.cardH + Math.round(layout.cardH * TABLEAU_Y_GAP);
 }
 
-export const STOCK_DECK_W = 60;
-export const STOCK_DECK_H = 84;
-
-function columnX(col: number): number {
-  return MARGIN_X + col * COL_PITCH;
+function columnX(layout: CardLayout, col: number): number {
+  return layout.marginX + col * layout.colPitch;
 }
 
-/** Top-left of a tableau column's base slot. */
-export function columnSlotPosition(col: number): { x: number; y: number } {
-  return { x: columnX(col), y: TABLEAU_Y };
+export function stockSlotPosition(layout: CardLayout): { x: number; y: number } {
+  return { x: layout.marginX, y: layout.topY };
 }
 
-/** Top-left of the card at `index` within tableau column `col`. */
+export const STOCK_DECK_W_RATIO = 0.75; // deck width relative to card width
+export const STOCK_DECK_H_RATIO = 1.05; // deck height relative to card height (taller to show stack)
+
+export function columnSlotPosition(layout: CardLayout, col: number): { x: number; y: number } {
+  return { x: columnX(layout, col), y: tableauY(layout) };
+}
+
 export function cardPosition(
   state: GameState,
   col: number,
   index: number,
 ): { x: number; y: number } {
-  const base = columnSlotPosition(col);
+  const { layout } = state;
+  const base = columnSlotPosition(layout, col);
   const column = state.tableau[col]!;
   let y = base.y;
-  for (let i = 0; i < index; i++)
-    y += column[i]!.faceUp ? FAN_FACE_UP : FAN_FACE_DOWN;
+  for (let i = 0; i < index; i++) {
+    y += column[i]!.faceUp
+      ? Math.round(layout.cardH * FAN_FACE_UP_RATIO)
+      : Math.round(layout.cardH * FAN_FACE_DOWN_RATIO);
+  }
   return { x: base.x, y };
 }
 
-// --- Deck construction + deal ---
+// --- Deck ---
 
-/** Create a 1-suit Spider deck: 8 copies of each rank (A→K), all Spades. */
 function makeSpiderDeck(createEntity: () => EntityId): Card[] {
   const deck: Card[] = [];
   for (let copy = 0; copy < 8; copy++) {
-    for (let rank = 1; rank <= 13; rank++) {
+    for (let rank = 1; rank <= 13; rank++)
       deck.push({ id: createEntity(), faceUp: false, rank, suit: 'Spades' });
-    }
   }
   return deck;
 }
 
-export function dealNewGame(createEntity: () => EntityId): GameState {
+export function dealNewGame(createEntity: () => EntityId, layout: CardLayout): GameState {
   const deck = makeSpiderDeck(createEntity);
   shuffleDeck(deck);
 
-  const tableau: Card[][] = Array.from({ length: COLUMNS }, () => []);
+  const tableau: Card[][] = Array.from({ length: SPIDER_SLOTS }, () => []);
 
-  // Cols 0-3: 6 cards, cols 4-9: 5 cards
-  for (let col = 0; col < COLUMNS; col++) {
+  for (let col = 0; col < SPIDER_SLOTS; col++) {
     const count = col < 4 ? 6 : 5;
     for (let row = 0; row < count; row++) {
       const card = deck.pop()!;
@@ -102,6 +100,7 @@ export function dealNewGame(createEntity: () => EntityId): GameState {
 
   return {
     completed: 0,
+    layout,
     stock: deck,
     tableau,
     won: false,
@@ -110,11 +109,6 @@ export function dealNewGame(createEntity: () => EntityId): GameState {
 
 // --- Move rules ---
 
-/**
- * Check whether the face-up cards starting at `index` in `column`
- * form a valid same-suit descending run that can be dragged.
- * In 1-suit mode this is always true for any face-up cards.
- */
 export function canDragRun(column: Card[], index: number): boolean {
   const card = column[index]!;
   if (!card.faceUp)
@@ -128,7 +122,6 @@ export function canDragRun(column: Card[], index: number): boolean {
   return true;
 }
 
-/** Whether `card` can be placed on `targetColumn`. */
 export function canDropOnColumn(card: Card, targetColumn: Card[]): boolean {
   if (targetColumn.length === 0)
     return true;
@@ -136,24 +129,18 @@ export function canDropOnColumn(card: Card, targetColumn: Card[]): boolean {
   return card.rank === top.rank - 1;
 }
 
-/**
- * Check for and remove any complete K→A same-suit run at the top of a column.
- * Returns the count of completed runs and the IDs of removed cards so the
- * caller can destroy their ECS entities.
- */
+/** Returns count of completed runs + IDs of removed cards for entity cleanup. */
 export function removeCompletedRuns(state: GameState): { count: number; removedIds: EntityId[] } {
   let count = 0;
   const removedIds: EntityId[] = [];
-  for (let col = 0; col < COLUMNS; col++) {
+  for (let col = 0; col < SPIDER_SLOTS; col++) {
     const column = state.tableau[col]!;
     if (column.length < 13)
       continue;
 
-    // Check if the last 13 cards form K→A same-suit
     const start = column.length - 13;
     let valid = true;
 
-    // Top card must be Ace (rank 1)
     if (column[start + 12]!.rank !== 1)
       valid = false;
 
@@ -169,7 +156,6 @@ export function removeCompletedRuns(state: GameState): { count: number; removedI
       for (const card of removed)
         removedIds.push(card.id);
       count++;
-      // Flip the new top card if any
       const newTop = column.at(-1);
       if (newTop && !newTop.faceUp)
         newTop.faceUp = true;
@@ -178,15 +164,14 @@ export function removeCompletedRuns(state: GameState): { count: number; removedI
   return { count, removedIds };
 }
 
-/** Deal one card from the stock to each tableau column. Requires all columns non-empty. */
 export function dealFromStock(state: GameState): boolean {
-  if (state.stock.length < COLUMNS)
+  if (state.stock.length < SPIDER_SLOTS)
     return false;
-  for (let col = 0; col < COLUMNS; col++) {
+  for (let col = 0; col < SPIDER_SLOTS; col++) {
     if (state.tableau[col]!.length === 0)
       return false;
   }
-  for (let col = 0; col < COLUMNS; col++) {
+  for (let col = 0; col < SPIDER_SLOTS; col++) {
     const card = state.stock.pop()!;
     card.faceUp = true;
     state.tableau[col]!.push(card);
