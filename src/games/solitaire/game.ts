@@ -25,6 +25,8 @@ export interface PileRef {
 export interface GameState {
   foundations: Card[][];
   layout: CardLayout;
+  score: number;
+  startTime: number;
   stock: Card[];
   tableau: Card[][];
   waste: Card[];
@@ -118,6 +120,8 @@ export function dealNewGame(createEntity: () => EntityId, layout: CardLayout): G
   return {
     foundations: [[], [], [], []],
     layout,
+    score: 0,
+    startTime: Date.now(),
     stock: deck,
     tableau,
     waste: [],
@@ -152,4 +156,50 @@ export function findFoundationFor(state: GameState, card: Card): number {
 
 export function isWon(state: GameState): boolean {
   return state.foundations.every(f => f.length === 13);
+}
+
+// --- Scoring (Windows Klondike rules) ---
+
+export function awardPoints(state: GameState, points: number): void {
+  state.score = Math.max(0, state.score + points);
+}
+
+/** Points for moving a card between piles. */
+export function movePoints(from: PileRef, to: PileRef): number {
+  if (to.kind === 'foundation') {
+    if (from.kind === 'waste')
+      return 10;
+    if (from.kind === 'tableau')
+      return 10;
+  }
+  if (to.kind === 'tableau' && from.kind === 'waste')
+    return 5;
+  if (to.kind === 'tableau' && from.kind === 'foundation')
+    return -15;
+  return 0;
+}
+
+/** Points for flipping a face-down tableau card. */
+export const FLIP_POINTS = 5;
+
+/** Points for recycling the waste pile. */
+export const RECYCLE_PENALTY = -100;
+
+/** Time penalty: -2 points per 10 seconds elapsed. */
+export function computeTimePenalty(state: GameState): number {
+  const elapsed = (Date.now() - state.startTime) / 1000;
+  return -Math.floor(elapsed / 10) * 2;
+}
+
+/** Time bonus: 700000 ÷ seconds, if game took ≥ 30 seconds. */
+export function computeTimeBonus(state: GameState): number {
+  const elapsed = (Date.now() - state.startTime) / 1000;
+  if (elapsed < 30)
+    return 0;
+  return Math.floor(700000 / elapsed);
+}
+
+/** Final score including time bonus. Call when the game is won. */
+export function finalScore(state: GameState): number {
+  return Math.max(0, state.score + computeTimeBonus(state));
 }

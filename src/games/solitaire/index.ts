@@ -1,5 +1,5 @@
 /**
- * Solitaire (Klondike, draw-1) — game entry point with dynamic layout.
+ * Solitaire (Klondike, draw-1) — Windows-style with scoring, auto-win, victory animation.
  */
 
 import type { EntityId } from '@pierre/ecs';
@@ -15,14 +15,20 @@ import { PositionDef } from '@pierre/ecs/modules/transform';
 
 import { playCardSfx } from '../../shared';
 import {
+  awardPoints,
   canDropOnFoundation,
   canDropOnTableau,
   cardPosition,
+  computeTimePenalty,
   dealNewGame,
+  finalScore,
   findFoundationFor,
+  FLIP_POINTS,
   initLayout,
   isWon,
+  movePoints,
   pileArray,
+  RECYCLE_PENALTY,
   slotPosition,
 } from './game';
 import { renderFrame, syncLayout } from './render';
@@ -42,6 +48,14 @@ interface Drag {
   grabY: number;
   pointerX: number;
   pointerY: number;
+}
+
+interface VictoryCard {
+  card: Card;
+  vx: number;
+  vy: number;
+  x: number;
+  y: number;
 }
 
 function makeWorld(): EcsWorld {
@@ -79,10 +93,13 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   newDealBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#fff;'
     + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
 
-  const hint = document.createElement('span');
-  hint.textContent = '';
+  const scoreEl = document.createElement('span');
+  scoreEl.style.cssText = 'font:700 14px system-ui;color:#ffe14d;min-width:80px;text-align:center';
 
-  bar.append(backBtn, newDealBtn, hint);
+  const timeEl = document.createElement('span');
+  timeEl.style.cssText = 'font:13px system-ui;color:#aac;min-width:60px;text-align:center';
+
+  bar.append(backBtn, newDealBtn, scoreEl, timeEl);
   container.append(bar, canvas);
 
   const { atlases, audio, audioCtx } = resources;
@@ -93,17 +110,101 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   let state: GameState | null = null;
   let drag: Drag | null = null;
   let rafId = 0;
+  let lastTimeUpdate = 0;
+  let autoWinQueue: { card: Card; target: number }[] = [];
+  let autoWinNextTime = 0;
+  let victoryCards: VictoryCard[] = [];
+
+  const updateScoreDisplay = (): void => {
+    if (!state)
+      return;
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    scoreEl.textContent = `Score: ${state.score}`;
+  };
 
   const newDeal = (): void => {
     world = makeWorld();
     state = dealNewGame((): EntityId => world.createEntity(), layout);
     drag = null;
-    hint.textContent = 'Click the stock to deal · drag to move · double-click to send to a foundation';
+    autoWinQueue = [];
+    victoryCards = [];
+    lastTimeUpdate = Date.now();
+    updateScoreDisplay();
   };
 
   const playSfx = (kind: 'place' | 'slide'): void => {
     playCardSfx(audio, kind);
   };
+
+  // --- Auto-win ---
+
+  const AUTO_WIN_DELAY = 50;
+
+  /** Returns true if auto-win animation was started. */
+  function tryAutoWin(s: GameState): boolean {
+    // Only auto-win when stock is empty and all tableau cards are face-up
+    if (s.stock.length > 0)
+      return false;
+
+    let allFaceUp = true;
+    for (let t = 0; t < 7; t++) {
+      for (const card of s.tableau[t]!) {
+        if (!card.faceUp) {
+          allFaceUp = false;
+          break;
+        }
+      }
+      if (!allFaceUp)
+        break;
+    }
+    if (!allFaceUp)
+      return false;
+
+    // Build the queue by simulating on a clone
+    autoWinQueue = [];
+    const sim = cloneState(s);
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      // Try waste → foundation
+      const wTop = sim.waste.at(-1);
+      if (wTop) {
+        const fi = findFoundationFor(sim, wTop);
+        if (fi !== -1) {
+          autoWinQueue.push({ card: wTop, target: fi });
+          sim.waste.pop();
+          sim.foundations[fi]!.push(wTop);
+          changed = true;
+          continue;
+        }
+      }
+      // Try tableau → foundation
+      for (let t = 0; t < 7; t++) {
+        const col = sim.tableau[t]!;
+        const top = col.at(-1);
+        if (top) {
+          const fi = findFoundationFor(sim, top);
+          if (fi !== -1) {
+            autoWinQueue.push({ card: top, target: fi });
+            col.pop();
+            sim.foundations[fi]!.push(top);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (autoWinQueue.length === 0)
+      return false;
+
+    autoWinNextTime = performance.now() + AUTO_WIN_DELAY;
+    return true;
+  }
 
   // --- Input ---
 
@@ -111,7 +212,7 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     projectPointer(event, canvas);
 
   const onPointerDown = (event: PointerEvent): void => {
-    if (!state || state.won)
+    if (!state || state.won || autoWinQueue.length > 0)
       return;
     void audioCtx.resume();
     const point = toWorld(event);
@@ -162,7 +263,7 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   };
 
   const onDoubleClick = (event: MouseEvent): void => {
-    if (!state || state.won)
+    if (!state || state.won || autoWinQueue.length > 0)
       return;
     const hit = pickCard(state, toWorld(event));
     if (!hit || hit.pile.kind === 'foundation' || hit.pile.kind === 'stock')
@@ -174,11 +275,16 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     const target = findFoundationFor(state, card);
     if (target === -1)
       return;
+    const from: PileRef = hit.pile;
     pile.pop();
     state.foundations[target]!.push(card);
-    flipExposed(hit.pile, state);
+    const flipped = flipExposed(hit.pile, state);
+    awardPoints(state, movePoints(from, { index: target, kind: 'foundation' }));
+    if (flipped)
+      awardPoints(state, FLIP_POINTS);
     playSfx('place');
-    finishMove(state);
+    updateScoreDisplay();
+    afterMove(state);
   };
 
   const onBackClick = (): void => {
@@ -197,10 +303,38 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   newDealBtn.addEventListener('click', newDeal, { signal: abort.signal });
   backBtn.addEventListener('click', onBackClick, { signal: abort.signal });
 
-  function finishMove(s: GameState): void {
+  function afterMove(s: GameState): void {
     if (isWon(s)) {
       s.won = true;
-      hint.textContent = 'You win! Press "New deal" to play again.';
+      const bonus = finalScore(s);
+      s.score = bonus;
+      updateScoreDisplay();
+      startVictoryAnimation();
+      return;
+    }
+    // Try auto-win
+    if (autoWinQueue.length === 0)
+      tryAutoWin(s);
+  }
+
+  function startVictoryAnimation(): void {
+    const s = state;
+    if (!s)
+      return;
+    victoryCards = [];
+    const { layout: lay } = s;
+    for (let f = 0; f < 4; f++) {
+      const pile = s.foundations[f]!;
+      pile.forEach((card, i) => {
+        const pos = cardPosition(s, { index: f, kind: 'foundation' }, i);
+        victoryCards.push({
+          card,
+          vx: (Math.random() - 0.5) * lay.cardW * 0.3,
+          vy: -lay.cardH * (0.2 + Math.random() * 0.3),
+          x: pos.x,
+          y: pos.y,
+        });
+      });
     }
   }
 
@@ -223,9 +357,14 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     const source = pileArray(s, d.from);
     source.splice(source.length - d.cards.length, d.cards.length);
     pileArray(s, target).push(...d.cards);
-    flipExposed(d.from, s);
+    const flipped = flipExposed(d.from, s);
+
+    awardPoints(s, movePoints(d.from, target));
+    if (flipped)
+      awardPoints(s, FLIP_POINTS);
     sfx('place');
-    finishMove(s);
+    updateScoreDisplay();
+    afterMove(s);
   }
 
   function dealFromStock(s: GameState, sfx: (kind: 'place' | 'slide') => void): void {
@@ -240,6 +379,8 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
         card.faceUp = false;
         s.stock.push(card);
       }
+      awardPoints(s, RECYCLE_PENALTY);
+      updateScoreDisplay();
     }
     sfx('slide');
   }
@@ -250,7 +391,84 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     if (disposed)
       return;
     if (state) {
-      syncLayout(world, state, drag);
+      const now = performance.now();
+
+      // Update timer display every frame
+      updateScoreDisplay();
+
+      // Time penalty every 10 seconds
+      if (now - lastTimeUpdate > 10000) {
+        const penalty = computeTimePenalty(state);
+        if (penalty < 0)
+          awardPoints(state, penalty);
+        lastTimeUpdate = now;
+        updateScoreDisplay();
+      }
+
+      // Auto-win animation
+      if (autoWinQueue.length > 0 && now >= autoWinNextTime && !state.won) {
+        const { card, target } = autoWinQueue.shift()!;
+        // Actually move the card in the real state
+        removeCardFromPiles(state, card);
+        state.foundations[target]!.push(card);
+        awardPoints(state, movePoints(
+          { index: 0, kind: 'waste' },
+          { index: target, kind: 'foundation' },
+        ));
+        playSfx('place');
+        updateScoreDisplay();
+        if (autoWinQueue.length > 0) {
+          autoWinNextTime = now + AUTO_WIN_DELAY;
+        }
+        else if (isWon(state)) {
+          state.won = true;
+          const bonus = finalScore(state);
+          state.score = bonus;
+          updateScoreDisplay();
+          startVictoryAnimation();
+        }
+      }
+
+      // Victory animation
+      if (victoryCards.length > 0 && state) {
+        const positions = world.getStore(PositionDef);
+        const { layout: lay } = state;
+
+        for (const vc of victoryCards) {
+          vc.vy += lay.cardH * 0.015; // gravity
+          vc.x += vc.vx;
+          vc.y += vc.vy;
+
+          // Bounce off bottom
+          if (vc.y > lay.canvasH - lay.cardH) {
+            vc.y = lay.canvasH - lay.cardH;
+            vc.vy *= -0.5;
+            if (Math.abs(vc.vy) < 1)
+              vc.vy = 0;
+          }
+          // Bounce off sides
+          if (vc.x < 0) {
+            vc.x = 0;
+            vc.vx *= -0.5;
+          }
+          if (vc.x > lay.canvasW - lay.cardW) {
+            vc.x = lay.canvasW - lay.cardW;
+            vc.vx *= -0.5;
+          }
+
+          positions.set(vc.card.id, { x: vc.x, y: vc.y });
+        }
+
+        // Bump render order for victory cards
+        const orders = world.getStore(RenderOrderDef);
+        victoryCards.forEach((vc, i) => {
+          orders.set(vc.card.id, { value: 200000 + i });
+        });
+      }
+
+      // Skip normal layout during victory animation
+      if (victoryCards.length === 0)
+        syncLayout(world, state, drag);
       renderFrame(ctx2d, world, atlases, state);
     }
     rafId = requestAnimationFrame(loop);
@@ -265,6 +483,41 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     cancelAnimationFrame(rafId);
     container.innerHTML = '';
   };
+}
+
+function cloneState(s: GameState): GameState {
+  return {
+    foundations: s.foundations.map(p => [...p]),
+    layout: s.layout,
+    score: s.score,
+    startTime: s.startTime,
+    stock: [...s.stock],
+    tableau: s.tableau.map(p => [...p]),
+    waste: [...s.waste],
+    won: s.won,
+  };
+}
+
+function removeCardFromPiles(state: GameState, card: Card): void {
+  // Check waste
+  const wIdx = state.waste.findIndex(c => c.id === card.id);
+  if (wIdx !== -1) {
+    state.waste.splice(wIdx, 1);
+    return;
+  }
+  // Check tableau
+  for (let t = 0; t < 7; t++) {
+    const col = state.tableau[t]!;
+    const idx = col.findIndex(c => c.id === card.id);
+    if (idx !== -1) {
+      col.splice(idx, 1);
+      // Flip exposed
+      const newTop = col.at(-1);
+      if (newTop && !newTop.faceUp)
+        newTop.faceUp = true;
+      return;
+    }
+  }
 }
 
 function inSlot(state: GameState, point: { x: number; y: number }, slot: { x: number; y: number }): boolean {
@@ -328,10 +581,14 @@ function dropTarget(
   return null;
 }
 
-function flipExposed(from: PileRef, state: GameState): void {
+/** Flip exposed top card of a tableau pile. Returns true if a card was flipped. */
+function flipExposed(from: PileRef, state: GameState): boolean {
   if (from.kind !== 'tableau')
-    return;
+    return false;
   const top = state.tableau[from.index]!.at(-1);
-  if (top && !top.faceUp)
+  if (top && !top.faceUp) {
     top.faceUp = true;
+    return true;
+  }
+  return false;
 }
