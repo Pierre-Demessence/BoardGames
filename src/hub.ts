@@ -8,6 +8,7 @@
 
 import type { GameResources } from './games/solitaire/index';
 
+import { start as startBlackjack } from './games/blackjack/index';
 import { start as startSolitaire } from './games/solitaire/index';
 import { start as startSpider } from './games/spider/index';
 
@@ -30,6 +31,12 @@ const GAMES: GameDef[] = [
     name: 'Spider',
     description: '1-suit — build 8 complete runs from King to Ace',
     start: startSpider,
+  },
+  {
+    id: 'blackjack',
+    name: 'Blackjack',
+    description: 'Classic 21 — beat the dealer without busting',
+    start: startBlackjack,
   },
 ];
 
