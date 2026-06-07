@@ -9,6 +9,7 @@
 import type { GameResources } from './games/solitaire/index';
 
 import { start as startSolitaire } from './games/solitaire/index';
+import { start as startSpider } from './games/spider/index';
 
 interface GameDef {
   id: string;
@@ -23,6 +24,12 @@ const GAMES: GameDef[] = [
     name: 'Solitaire',
     description: 'Klondike (draw-1) — the classic patience game',
     start: startSolitaire,
+  },
+  {
+    id: 'spider',
+    name: 'Spider',
+    description: '1-suit — build 8 complete runs from King to Ace',
+    start: startSpider,
   },
 ];
 
