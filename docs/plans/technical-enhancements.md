@@ -154,27 +154,14 @@ Constants duplicated or hardcoded across files:
 
 ---
 
-### 6. `noUncheckedIndexedAccess` Is Off
+### 6. `noUncheckedIndexedAccess` Is Off ⚠️ BLOCKED
 
-`tsconfig.json` has `strict: true` but omits `noUncheckedIndexedAccess`.
-
-The codebase uses many non-null assertions (`!`) on array accesses that this flag would catch:
-
-```ts
-// Examples of ! assertions that should be narrowed instead:
-state.tableau[col]!           // Could be undefined if col out of range
-state.foundations[fi]!        // Could be undefined
-column[i]!                    // Loop variable, but index could be out of bounds
-state.dealerHand[0]!          // Assumes non-empty, but what about edge cases?
-state.playerHand[0]!          // Same
-deck.pop()!                   // Assumes non-empty deck
-```
+> **Blocked:** Enabling produces 10 type errors — all in `@pierre/ecs` engine (`query.ts`, `scheduler.ts`, `event-bus.ts`, `gamepad-provider.ts`). BoardGames source has zero errors. Engine must be fixed first.
 
 **Tasks:**
 
-- [ ] Add `"noUncheckedIndexedAccess": true` to `tsconfig.json`
-- [ ] Fix resulting type errors with proper narrowing (not `!`)
-- [ ] Where narrowing is impossible, use explicit `throw new Error(...)` for invariant violations
+- [ ] Fix engine: `query.ts` (5 errors), `scheduler.ts` (2), `event-bus.ts` (1), `gamepad-provider.ts` (2)
+- [ ] Enable `"noUncheckedIndexedAccess": true` in `tsconfig.json`
 
 ---
 
@@ -228,7 +215,7 @@ Add at minimum `console.warn` so failures are discoverable during development.
 
 **Tasks:**
 
-- [ ] Add `console.warn('board-games: SFX play failed:', error)` in the catch block
+- [x] Add `console.warn('board-games: SFX play failed:', error)` in the catch block
 
 ---
 
@@ -240,7 +227,7 @@ Add at minimum `console.warn` so failures are discoverable during development.
 
 **Tasks:**
 
-- [ ] Add `aria-label` to all buttons
+- [x] Add `aria-label` to all buttons
 - [ ] Add keyboard shortcuts: `H` = Hit, `S` = Stand (Blackjack); `N` = New deal (all games); `Backspace` = Back to hub
 
 ---
@@ -256,8 +243,8 @@ Also missing common `<meta>` tags:
 
 **Tasks:**
 
-- [ ] Add viewport meta tag
-- [ ] Add description and theme-color meta tags
+- [x] Add viewport meta tag
+- [x] Add description and theme-color meta tags
 
 ---
 
@@ -283,7 +270,7 @@ test-results/
 
 **Tasks:**
 
-- [ ] Add `coverage/`, `test-results/`, `*.tsbuildinfo` to `.gitignore`
+- [x] Add `coverage/`, `test-results/`, `*.tsbuildinfo` to `.gitignore`
 
 ---
 
@@ -313,8 +300,8 @@ The `AudioContext` created in `src/main.ts` is never `.close()`d. The `start()` 
 
 **Tasks:**
 
-- [ ] Close `audioCtx` in the `start()` dispose callback
-- [ ] Guard with `audioCtx.state !== 'closed'` check
+- [x] Close `audioCtx` in the `start()` dispose callback
+- [x] Guard with `audioCtx.state !== 'closed'` check
 
 ---
 

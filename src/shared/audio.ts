@@ -55,8 +55,8 @@ export function playCardSfx(audio: CardAudio | null, kind: 'place' | 'slide'): v
   try {
     audio.provider.play(id, { channel: 'sfx', volume: SFX_VOLUME });
   }
-  catch {
-    // A clip can fail if decoding was skipped; SFX is non-essential.
+  catch (error) {
+    console.warn('board-games: SFX play failed:', error);
   }
 }
 

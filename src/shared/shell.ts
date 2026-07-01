@@ -38,7 +38,7 @@ export interface GameShell {
   signal: AbortSignal;
 
   /** Add a button to the control bar. Returns the element for styling/event binding. */
-  addButton: (label: string, primary: boolean) => HTMLButtonElement;
+  addButton(label: string, primary: boolean, ariaLabel?: string): HTMLButtonElement;
 
   /** Append an arbitrary element (span, etc.) to the control bar. */
   addElement: (el: HTMLElement) => void;
@@ -72,10 +72,12 @@ export function createGameShell(
 
   const backBtn = document.createElement('button');
   backBtn.textContent = '← Games';
+  backBtn.setAttribute('aria-label', 'Back to game selection');
   backBtn.style.cssText = BTN_SECONDARY;
 
   const newDealBtn = document.createElement('button');
   newDealBtn.textContent = 'New deal';
+  newDealBtn.setAttribute('aria-label', 'Start a new deal');
   newDealBtn.style.cssText = BTN_PRIMARY;
 
   bar.append(backBtn, newDealBtn);
@@ -101,9 +103,10 @@ export function createGameShell(
     ctx2d,
     signal: abort.signal,
 
-    addButton(label: string, primary: boolean): HTMLButtonElement {
+    addButton(label: string, primary: boolean, ariaLabel?: string): HTMLButtonElement {
       const btn = document.createElement('button');
       btn.textContent = label;
+      btn.setAttribute('aria-label', ariaLabel ?? label);
       btn.style.cssText = primary ? BTN_PRIMARY : BTN_SECONDARY;
       bar.insertBefore(btn, newDealBtn);
       return btn;

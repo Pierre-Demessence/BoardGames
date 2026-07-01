@@ -21,11 +21,12 @@ export function start(container: HTMLElement): () => void {
 
   const abort = new AbortController();
   let disposed = false;
+  let audioCtx: AudioContext | null = null;
 
   void (async () => {
     try {
       const assetLoader = new AssetLoader();
-      const audioCtx = new (window.AudioContext ?? (window as unknown as {
+      audioCtx = new (window.AudioContext ?? (window as unknown as {
         webkitAudioContext: typeof AudioContext;
       }).webkitAudioContext)();
 
@@ -55,6 +56,8 @@ export function start(container: HTMLElement): () => void {
   return () => {
     disposed = true;
     abort.abort();
+    if (audioCtx && audioCtx.state !== 'closed')
+      void audioCtx.close();
     container.innerHTML = '';
   };
 }
