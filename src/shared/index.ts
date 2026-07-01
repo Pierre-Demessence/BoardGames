@@ -6,5 +6,18 @@ export type { CardLayout } from './layout';
 export { BACKS_ATLAS, CARDS_ATLAS, loadCardAtlases } from './atlas';
 export { loadCardAudio, playCardSfx } from './audio';
 export { CARD_BACK_FRAME, CARD_H, CARD_W, cardFrame, RANKS, suitColor, SUITS } from './cards';
+export {
+  BAR_HEIGHT,
+  DRAG_FAN_RATIO,
+  DRAG_ORDER_BUMP,
+  FAN_FACE_DOWN_RATIO,
+  FAN_FACE_UP_RATIO,
+  HAND_CARD_OVERLAP,
+  OFF_SCREEN_X,
+  OFF_SCREEN_Y,
+  OFF_SCREEN_Y_STEP,
+  SFX_VOLUME,
+  TABLEAU_Y_GAP,
+} from './constants';
 export { makeDeck, shuffleDeck } from './deck';
 export { computeLayout } from './layout';

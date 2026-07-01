@@ -12,12 +12,10 @@ import type { Card, GameState, PileRef } from './game';
 import { Canvas2DRenderer, RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS } from '../../shared';
+import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS, DRAG_FAN_RATIO, DRAG_ORDER_BUMP } from '../../shared';
 import { cardPosition, slotPosition } from './game';
 
-export const DRAG_ORDER_BUMP = 100_000;
-
-const DRAG_FAN_RATIO = 0.3; // vertical fan between dragged cards as fraction of card height
+export { DRAG_ORDER_BUMP } from '../../shared';
 
 export interface DragOverride {
   cards: Card[];

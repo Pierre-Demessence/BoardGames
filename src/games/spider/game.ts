@@ -9,7 +9,7 @@ import type { EntityId } from '@pierre/ecs';
 import type { Card } from '../../shared';
 import type { CardLayout } from '../../shared/layout';
 
-import { shuffleDeck } from '../../shared';
+import { FAN_FACE_DOWN_RATIO, FAN_FACE_UP_RATIO, shuffleDeck, TABLEAU_Y_GAP } from '../../shared';
 import { computeLayout } from '../../shared/layout';
 
 export type { Card } from '../../shared';
@@ -29,10 +29,6 @@ export function initLayout(containerW: number, containerH: number): CardLayout {
 }
 
 // --- Board layout ---
-
-const FAN_FACE_UP_RATIO = 0.3;
-const FAN_FACE_DOWN_RATIO = 0.125;
-const TABLEAU_Y_GAP = 0.3;
 
 export { SPIDER_SLOTS as COLUMNS };
 

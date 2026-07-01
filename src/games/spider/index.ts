@@ -13,7 +13,7 @@ import { projectPointer } from '@pierre/ecs/modules/input';
 import { RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { playCardSfx } from '../../shared';
+import { BAR_HEIGHT, playCardSfx } from '../../shared';
 import {
   canDragRun,
   canDropOnColumn,
@@ -30,8 +30,6 @@ import {
   stockSlotPosition,
 } from './game';
 import { renderFrame, syncLayout } from './render';
-
-const BAR_HEIGHT = 44;
 
 interface Drag {
   cards: Card[];

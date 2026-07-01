@@ -12,7 +12,7 @@ import type { Card, GameState } from './game';
 import { Canvas2DRenderer, RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS } from '../../shared';
+import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS, DRAG_FAN_RATIO, DRAG_ORDER_BUMP, OFF_SCREEN_X, OFF_SCREEN_Y, OFF_SCREEN_Y_STEP } from '../../shared';
 import {
   cardPosition,
   COLUMNS,
@@ -22,9 +22,7 @@ import {
   stockSlotPosition,
 } from './game';
 
-export const DRAG_ORDER_BUMP = 100_000;
-
-const DRAG_FAN_RATIO = 0.3;
+export { DRAG_ORDER_BUMP } from '../../shared';
 
 export interface DragOverride {
   cards: Card[];
@@ -59,7 +57,7 @@ export function syncLayout(world: EcsWorld, state: GameState, drag?: DragOverrid
   };
 
   state.stock.forEach((card, i) => {
-    placeCard(card, -200, -200 + i * 2);
+    placeCard(card, OFF_SCREEN_X, OFF_SCREEN_Y + i * OFF_SCREEN_Y_STEP);
   });
 
   const draggedIds = new Set(drag ? drag.cards.map(c => c.id) : []);

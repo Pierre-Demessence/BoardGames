@@ -135,9 +135,9 @@ Constants duplicated or hardcoded across files:
 - UI constants: bar height, dealer delay
 
 **Tasks:**
-- [ ] Create `src/shared/constants.ts` with all shared magic numbers
-- [ ] Update all game files to import from shared constants
-- [ ] Remove local duplicate definitions
+- [x] Create `src/shared/constants.ts` with all shared magic numbers
+- [x] Update all game files to import from shared constants
+- [x] Remove local duplicate definitions
 
 ---
 

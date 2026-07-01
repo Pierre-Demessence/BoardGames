@@ -12,10 +12,8 @@ import type { Card, GameState } from './game';
 import { Canvas2DRenderer, RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS } from '../../shared';
+import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS, HAND_CARD_OVERLAP as CARD_OVERLAP, OFF_SCREEN_X, OFF_SCREEN_Y, OFF_SCREEN_Y_STEP } from '../../shared';
 import { handValue, isBust } from './game';
-
-const CARD_OVERLAP = 0.35; // overlap between adjacent cards as fraction of card width
 
 const renderer = new Canvas2DRenderer();
 
@@ -56,7 +54,7 @@ export function syncLayout(world: EcsWorld, state: GameState): void {
 
   // Deck cards — off-screen
   state.deck.forEach((card, i) => {
-    positions.set(card.id, { x: -200, y: -200 + i * 2 });
+    positions.set(card.id, { x: OFF_SCREEN_X, y: OFF_SCREEN_Y + i * OFF_SCREEN_Y_STEP });
     renderables.set(card.id, {
       anchor: 'top-left',
       atlas: BACKS_ATLAS,

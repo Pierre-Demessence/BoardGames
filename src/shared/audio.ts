@@ -11,6 +11,8 @@ import { audioBufferAsset } from '@pierre/ecs/modules/asset-loader';
 import { WebAudioProvider } from '@pierre/ecs/modules/audio';
 import { pick } from '@pierre/ecs/modules/rng';
 
+import { SFX_VOLUME } from './constants';
+
 import place1Url from '../../assets/kenney_boardgame-pack/Bonus/cardPlace1.ogg?url';
 import place2Url from '../../assets/kenney_boardgame-pack/Bonus/cardPlace2.ogg?url';
 import place3Url from '../../assets/kenney_boardgame-pack/Bonus/cardPlace3.ogg?url';
@@ -52,7 +54,7 @@ export function playCardSfx(audio: CardAudio | null, kind: 'place' | 'slide'): v
   const ids = kind === 'slide' ? audio.slide : audio.place;
   const id = pick(ids)!;
   try {
-    audio.provider.play(id, { channel: 'sfx', volume: 0.6 });
+    audio.provider.play(id, { channel: 'sfx', volume: SFX_VOLUME });
   }
   catch {
     // A clip can fail if decoding was skipped; SFX is non-essential.

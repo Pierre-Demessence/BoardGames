@@ -14,7 +14,7 @@ import { EcsWorld } from '@pierre/ecs';
 import { RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { playCardSfx } from '../../shared';
+import { BAR_HEIGHT, playCardSfx } from '../../shared';
 import { computeLayout } from '../../shared/layout';
 import {
   checkNaturalBlackjack,
@@ -25,7 +25,6 @@ import {
 } from './game';
 import { renderFrame, syncLayout } from './render';
 
-const BAR_HEIGHT = 44;
 const BLACKJACK_SLOTS = 12; // enough for many cards in a hand
 
 function makeWorld(): EcsWorld {
