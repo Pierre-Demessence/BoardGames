@@ -21,9 +21,9 @@ Testable pure functions (no DOM, no canvas — data in, data out):
 | `src/games/spider/game.ts` | `canDragRun`, `canDropOnColumn`, `removeCompletedRuns`, `dealFromStock`, `isWon`, `dealNewGame` |
 
 **Tasks:**
-- [ ] Write unit tests for `src/shared/cards.ts`
-- [ ] Write unit tests for `src/shared/deck.ts`
-- [ ] Write unit tests for `src/shared/layout.ts`
+- [x] Write unit tests for `src/shared/cards.ts` (5 tests)
+- [x] Write unit tests for `src/shared/deck.ts` (10 tests)
+- [x] Write unit tests for `src/shared/layout.ts` (12 tests)
 - [ ] Write unit tests for `src/games/blackjack/game.ts`
 - [ ] Write unit tests for `src/games/solitaire/game.ts`
 - [ ] Write unit tests for `src/games/spider/game.ts`
