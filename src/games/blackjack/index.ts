@@ -7,7 +7,7 @@
 
 import type { EntityId } from '@pierre/ecs';
 
-import type { GameResources } from '../solitaire';
+import type { GameResources } from '../../shared';
 import type { GameState } from './game';
 
 import { BAR_HEIGHT, createGameShell, makeWorld, playCardSfx } from '../../shared';

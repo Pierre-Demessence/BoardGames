@@ -114,10 +114,10 @@ function createGameShell(config: GameShellConfig): () => void;
 
 **Tasks:**
 
-- [ ] Define `GameResources` in `src/shared/` (or declare in `src/shared/index.ts`)
-- [ ] Re-export from `src/games/solitaire/index.ts` for backward compat
-- [ ] Update `src/hub.ts` import
-- [ ] Update `src/games/spider/index.ts` import
+- [x] Define `GameResources` in `src/shared/index.ts`
+- [x] Update `src/hub.ts` import (solitaire → shared)
+- [x] Update `src/games/spider/index.ts` import (solitaire → shared)
+- [x] Update `src/games/blackjack/index.ts` import (solitaire → shared)
 
 ---
 

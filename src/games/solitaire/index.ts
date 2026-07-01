@@ -3,16 +3,14 @@
  */
 
 import type { EntityId } from '@pierre/ecs';
-import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
-import type { CardAudio } from '../../shared';
 import type { Card, GameState, PileRef } from './game';
 
 import { projectPointer } from '@pierre/ecs/modules/input';
 import { RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BAR_HEIGHT, createGameShell, makeWorld, playCardSfx } from '../../shared';
+import { BAR_HEIGHT, createGameShell, makeWorld, playCardSfx, type GameResources } from '../../shared';
 import {
   awardPoints,
   canDropOnFoundation,
@@ -31,12 +29,6 @@ import {
   slotPosition,
 } from './game';
 import { renderFrame, syncLayout } from './render';
-
-export interface GameResources {
-  atlases: TextureAtlasRegistry;
-  audio: CardAudio;
-  audioCtx: AudioContext;
-}
 
 interface Drag {
   cards: Card[];

@@ -6,7 +6,7 @@
  * When a game's back button is pressed, the hub re-renders.
  */
 
-import type { GameResources } from './games/solitaire/index';
+import type { GameResources } from './shared';
 
 import { start as startBlackjack } from './games/blackjack/index';
 import { start as startSolitaire } from './games/solitaire/index';

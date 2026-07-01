@@ -4,7 +4,7 @@
 
 import type { EntityId } from '@pierre/ecs';
 
-import type { GameResources } from '../solitaire';
+import type { GameResources } from '../../shared';
 import type { Card, GameState } from './game';
 import type { DragOverride } from './render';
 
