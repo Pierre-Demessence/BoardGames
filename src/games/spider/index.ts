@@ -8,12 +8,9 @@ import type { GameResources } from '../solitaire';
 import type { Card, GameState } from './game';
 import type { DragOverride } from './render';
 
-import { EcsWorld } from '@pierre/ecs';
 import { projectPointer } from '@pierre/ecs/modules/input';
-import { RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
-import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BAR_HEIGHT, playCardSfx } from '../../shared';
+import { BAR_HEIGHT, createGameShell, makeWorld, playCardSfx } from '../../shared';
 import {
   canDragRun,
   canDropOnColumn,
@@ -41,55 +38,15 @@ interface Drag {
   pointerY: number;
 }
 
-function makeWorld(): EcsWorld {
-  const world = new EcsWorld();
-  world.registerComponent(PositionDef);
-  world.registerComponent(RenderableDef);
-  world.registerComponent(RenderOrderDef);
-  return world;
-}
-
 export function start(container: HTMLElement, resources: GameResources, onBack: () => void): () => void {
   const containerRect = container.getBoundingClientRect();
   const layout = initLayout(containerRect.width, containerRect.height - BAR_HEIGHT);
 
-  container.innerHTML = '';
-
-  const canvas = document.createElement('canvas');
-  canvas.width = layout.canvasW;
-  canvas.height = layout.canvasH;
-  canvas.style.cssText = `display:block;width:${layout.canvasW}px;height:${layout.canvasH}px;`
-    + 'margin:0 auto;border-radius:10px;touch-action:none;cursor:pointer';
-  const ctx2d = canvas.getContext('2d')!;
-
-  const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;gap:12px;align-items:center;justify-content:center;'
-    + `padding:8px 10px;font:13px system-ui;color:#cde;flex-shrink:0;height:${BAR_HEIGHT}px;box-sizing:border-box`;
-
-  const backBtn = document.createElement('button');
-  backBtn.textContent = '← Games';
-  backBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#cde;'
-    + 'background:#2a5a4a;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const newDealBtn = document.createElement('button');
-  newDealBtn.textContent = 'New deal';
-  newDealBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#fff;'
-    + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const hint = document.createElement('span');
-  hint.textContent = '';
-
-  bar.append(backBtn, newDealBtn, hint);
-  container.append(bar, canvas);
-
   const { atlases, audio, audioCtx } = resources;
-  const abort = new AbortController();
 
-  let disposed = false;
   let world = makeWorld();
   let state: GameState | null = null;
   let drag: Drag | null = null;
-  let rafId = 0;
 
   const newDeal = (): void => {
     world = makeWorld();
@@ -98,11 +55,19 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     hint.textContent = 'Click the stock to deal · drag cards to build descending runs';
   };
 
+  const shell = createGameShell(container, layout.canvasW, layout.canvasH, onBack, newDeal);
+
+  const hint = document.createElement('span');
+  hint.textContent = '';
+  shell.addElement(hint);
+
   const playSfx = (kind: 'place' | 'slide'): void => {
     playCardSfx(audio, kind);
   };
 
   // --- Input ---
+
+  const { canvas, ctx2d, signal } = shell;
 
   const toWorld = (event: PointerEvent | MouseEvent): { x: number; y: number } =>
     projectPointer(event, canvas);
@@ -166,20 +131,10 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     drag = null;
   };
 
-  const onBackClick = (): void => {
-    disposed = true;
-    abort.abort();
-    cancelAnimationFrame(rafId);
-    container.innerHTML = '';
-    onBack();
-  };
-
-  canvas.addEventListener('pointerdown', onPointerDown, { signal: abort.signal });
-  canvas.addEventListener('pointermove', onPointerMove, { signal: abort.signal });
-  canvas.addEventListener('pointerup', onPointerUp, { signal: abort.signal });
-  canvas.addEventListener('pointercancel', onPointerUp, { signal: abort.signal });
-  newDealBtn.addEventListener('click', newDeal, { signal: abort.signal });
-  backBtn.addEventListener('click', onBackClick, { signal: abort.signal });
+  canvas.addEventListener('pointerdown', onPointerDown, { signal });
+  canvas.addEventListener('pointermove', onPointerMove, { signal });
+  canvas.addEventListener('pointerup', onPointerUp, { signal });
+  canvas.addEventListener('pointercancel', onPointerUp, { signal });
 
   function finishMove(s: GameState): void {
     if (isWon(s)) {
@@ -227,36 +182,27 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
 
   // --- Render loop ---
 
-  const loop = (): void => {
-    if (disposed)
+  shell.startLoop(() => {
+    if (!state)
       return;
-    if (state) {
-      const dragOverride: DragOverride | null = drag
-        ? {
-            cards: drag.cards,
-            fromCol: drag.fromCol,
-            fromIndex: drag.fromIndex,
-            grabX: drag.grabX,
-            grabY: drag.grabY,
-            pointerX: drag.pointerX,
-            pointerY: drag.pointerY,
-          }
-        : null;
-      syncLayout(world, state, dragOverride);
-      renderFrame(ctx2d, world, atlases, state);
-    }
-    rafId = requestAnimationFrame(loop);
-  };
+    const dragOverride: DragOverride | null = drag
+      ? {
+          cards: drag.cards,
+          fromCol: drag.fromCol,
+          fromIndex: drag.fromIndex,
+          grabX: drag.grabX,
+          grabY: drag.grabY,
+          pointerX: drag.pointerX,
+          pointerY: drag.pointerY,
+        }
+      : null;
+    syncLayout(world, state, dragOverride);
+    renderFrame(ctx2d, world, atlases, state);
+  });
 
   newDeal();
-  loop();
 
-  return () => {
-    disposed = true;
-    abort.abort();
-    cancelAnimationFrame(rafId);
-    container.innerHTML = '';
-  };
+  return () => shell.dispose();
 }
 
 function inSlot(state: GameState, point: { x: number; y: number }, slot: { x: number; y: number }): boolean {

@@ -8,12 +8,11 @@ import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 import type { CardAudio } from '../../shared';
 import type { Card, GameState, PileRef } from './game';
 
-import { EcsWorld } from '@pierre/ecs';
 import { projectPointer } from '@pierre/ecs/modules/input';
-import { RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
+import { RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BAR_HEIGHT, playCardSfx } from '../../shared';
+import { BAR_HEIGHT, createGameShell, makeWorld, playCardSfx } from '../../shared';
 import {
   awardPoints,
   canDropOnFoundation,
@@ -56,72 +55,19 @@ interface VictoryCard {
   y: number;
 }
 
-function makeWorld(): EcsWorld {
-  const world = new EcsWorld();
-  world.registerComponent(PositionDef);
-  world.registerComponent(RenderableDef);
-  world.registerComponent(RenderOrderDef);
-  return world;
-}
-
 export function start(container: HTMLElement, resources: GameResources, onBack: () => void): () => void {
   const containerRect = container.getBoundingClientRect();
   const layout = initLayout(containerRect.width, containerRect.height - BAR_HEIGHT);
 
-  container.innerHTML = '';
-
-  const canvas = document.createElement('canvas');
-  canvas.width = layout.canvasW;
-  canvas.height = layout.canvasH;
-  canvas.style.cssText = `display:block;width:${layout.canvasW}px;height:${layout.canvasH}px;`
-    + 'margin:0 auto;border-radius:10px;touch-action:none;cursor:pointer';
-  const ctx2d = canvas.getContext('2d')!;
-
-  const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;gap:12px;align-items:center;justify-content:center;'
-    + `padding:8px 10px;font:13px system-ui;color:#cde;flex-shrink:0;height:${BAR_HEIGHT}px;box-sizing:border-box`;
-
-  const backBtn = document.createElement('button');
-  backBtn.textContent = '← Games';
-  backBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#cde;'
-    + 'background:#2a5a4a;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const newDealBtn = document.createElement('button');
-  newDealBtn.textContent = 'New deal';
-  newDealBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#fff;'
-    + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const scoreEl = document.createElement('span');
-  scoreEl.style.cssText = 'font:700 14px system-ui;color:#ffe14d;min-width:80px;text-align:center';
-
-  const timeEl = document.createElement('span');
-  timeEl.style.cssText = 'font:13px system-ui;color:#aac;min-width:60px;text-align:center';
-
-  bar.append(backBtn, newDealBtn, scoreEl, timeEl);
-  container.append(bar, canvas);
-
   const { atlases, audio, audioCtx } = resources;
-  const abort = new AbortController();
 
-  let disposed = false;
   let world = makeWorld();
   let state: GameState | null = null;
   let drag: Drag | null = null;
-  let rafId = 0;
   let lastTimeUpdate = 0;
   let autoWinQueue: { card: Card; target: number }[] = [];
   let autoWinNextTime = 0;
   let victoryCards: VictoryCard[] = [];
-
-  const updateScoreDisplay = (): void => {
-    if (!state)
-      return;
-    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
-    const mins = Math.floor(elapsed / 60);
-    const secs = elapsed % 60;
-    timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-    scoreEl.textContent = `Score: ${state.score}`;
-  };
 
   const newDeal = (): void => {
     world = makeWorld();
@@ -133,17 +79,35 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     updateScoreDisplay();
   };
 
+  const shell = createGameShell(container, layout.canvasW, layout.canvasH, onBack, newDeal);
+
+  const scoreEl = document.createElement('span');
+  scoreEl.style.cssText = 'font:700 14px system-ui;color:#ffe14d;min-width:80px;text-align:center';
+  shell.addElement(scoreEl);
+
+  const timeEl = document.createElement('span');
+  timeEl.style.cssText = 'font:13px system-ui;color:#aac;min-width:60px;text-align:center';
+  shell.addElement(timeEl);
+
   const playSfx = (kind: 'place' | 'slide'): void => {
     playCardSfx(audio, kind);
+  };
+
+  const updateScoreDisplay = (): void => {
+    if (!state)
+      return;
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    scoreEl.textContent = `Score: ${state.score}`;
   };
 
   // --- Auto-win ---
 
   const AUTO_WIN_DELAY = 50;
 
-  /** Returns true if auto-win animation was started. */
   function tryAutoWin(s: GameState): boolean {
-    // Only auto-win when stock is empty and all tableau cards are face-up
     if (s.stock.length > 0)
       return false;
 
@@ -161,14 +125,12 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     if (!allFaceUp)
       return false;
 
-    // Build the queue by simulating on a clone
     autoWinQueue = [];
     const sim = cloneState(s);
 
     let changed = true;
     while (changed) {
       changed = false;
-      // Try waste → foundation
       const wTop = sim.waste.at(-1);
       if (wTop) {
         const fi = findFoundationFor(sim, wTop);
@@ -180,7 +142,6 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
           continue;
         }
       }
-      // Try tableau → foundation
       for (let t = 0; t < 7; t++) {
         const col = sim.tableau[t]!;
         const top = col.at(-1);
@@ -205,6 +166,8 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
   }
 
   // --- Input ---
+
+  const { canvas, ctx2d, signal } = shell;
 
   const toWorld = (event: PointerEvent | MouseEvent): { x: number; y: number } =>
     projectPointer(event, canvas);
@@ -285,21 +248,11 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     afterMove(state);
   };
 
-  const onBackClick = (): void => {
-    disposed = true;
-    abort.abort();
-    cancelAnimationFrame(rafId);
-    container.innerHTML = '';
-    onBack();
-  };
-
-  canvas.addEventListener('pointerdown', onPointerDown, { signal: abort.signal });
-  canvas.addEventListener('pointermove', onPointerMove, { signal: abort.signal });
-  canvas.addEventListener('pointerup', onPointerUp, { signal: abort.signal });
-  canvas.addEventListener('pointercancel', onPointerUp, { signal: abort.signal });
-  canvas.addEventListener('dblclick', onDoubleClick, { signal: abort.signal });
-  newDealBtn.addEventListener('click', newDeal, { signal: abort.signal });
-  backBtn.addEventListener('click', onBackClick, { signal: abort.signal });
+  canvas.addEventListener('pointerdown', onPointerDown, { signal });
+  canvas.addEventListener('pointermove', onPointerMove, { signal });
+  canvas.addEventListener('pointerup', onPointerUp, { signal });
+  canvas.addEventListener('pointercancel', onPointerUp, { signal });
+  canvas.addEventListener('dblclick', onDoubleClick, { signal });
 
   function afterMove(s: GameState): void {
     if (isWon(s)) {
@@ -310,7 +263,6 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
       startVictoryAnimation();
       return;
     }
-    // Try auto-win
     if (autoWinQueue.length === 0)
       tryAutoWin(s);
   }
@@ -385,102 +337,84 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
 
   // --- Render loop ---
 
-  const loop = (): void => {
-    if (disposed)
+  shell.startLoop(() => {
+    if (!state)
       return;
-    if (state) {
-      const now = performance.now();
+    const now = performance.now();
 
-      // Update timer display every frame
+    updateScoreDisplay();
+
+    if (now - lastTimeUpdate > 10000) {
+      const penalty = computeTimePenalty(state);
+      if (penalty < 0)
+        awardPoints(state, penalty);
+      lastTimeUpdate = now;
       updateScoreDisplay();
-
-      // Time penalty every 10 seconds
-      if (now - lastTimeUpdate > 10000) {
-        const penalty = computeTimePenalty(state);
-        if (penalty < 0)
-          awardPoints(state, penalty);
-        lastTimeUpdate = now;
-        updateScoreDisplay();
-      }
-
-      // Auto-win animation
-      if (autoWinQueue.length > 0 && now >= autoWinNextTime && !state.won) {
-        const { card, target } = autoWinQueue.shift()!;
-        // Actually move the card in the real state
-        removeCardFromPiles(state, card);
-        state.foundations[target]!.push(card);
-        awardPoints(state, movePoints(
-          { index: 0, kind: 'waste' },
-          { index: target, kind: 'foundation' },
-        ));
-        playSfx('place');
-        updateScoreDisplay();
-        if (autoWinQueue.length > 0) {
-          autoWinNextTime = now + AUTO_WIN_DELAY;
-        }
-        else if (isWon(state)) {
-          state.won = true;
-          const bonus = finalScore(state);
-          state.score = bonus;
-          updateScoreDisplay();
-          startVictoryAnimation();
-        }
-      }
-
-      // Victory animation
-      if (victoryCards.length > 0 && state) {
-        const positions = world.getStore(PositionDef);
-        const { layout: lay } = state;
-
-        for (const vc of victoryCards) {
-          vc.vy += lay.cardH * 0.015; // gravity
-          vc.x += vc.vx;
-          vc.y += vc.vy;
-
-          // Bounce off bottom
-          if (vc.y > lay.canvasH - lay.cardH) {
-            vc.y = lay.canvasH - lay.cardH;
-            vc.vy *= -0.5;
-            if (Math.abs(vc.vy) < 1)
-              vc.vy = 0;
-          }
-          // Bounce off sides
-          if (vc.x < 0) {
-            vc.x = 0;
-            vc.vx *= -0.5;
-          }
-          if (vc.x > lay.canvasW - lay.cardW) {
-            vc.x = lay.canvasW - lay.cardW;
-            vc.vx *= -0.5;
-          }
-
-          positions.set(vc.card.id, { x: vc.x, y: vc.y });
-        }
-
-        // Bump render order for victory cards
-        const orders = world.getStore(RenderOrderDef);
-        victoryCards.forEach((vc, i) => {
-          orders.set(vc.card.id, { value: 200000 + i });
-        });
-      }
-
-      // Skip normal layout during victory animation
-      if (victoryCards.length === 0)
-        syncLayout(world, state, drag);
-      renderFrame(ctx2d, world, atlases, state);
     }
-    rafId = requestAnimationFrame(loop);
-  };
+
+    if (autoWinQueue.length > 0 && now >= autoWinNextTime && !state.won) {
+      const { card, target } = autoWinQueue.shift()!;
+      removeCardFromPiles(state, card);
+      state.foundations[target]!.push(card);
+      awardPoints(state, movePoints(
+        { index: 0, kind: 'waste' },
+        { index: target, kind: 'foundation' },
+      ));
+      playSfx('place');
+      updateScoreDisplay();
+      if (autoWinQueue.length > 0) {
+        autoWinNextTime = now + AUTO_WIN_DELAY;
+      }
+      else if (isWon(state)) {
+        state.won = true;
+        const bonus = finalScore(state);
+        state.score = bonus;
+        updateScoreDisplay();
+        startVictoryAnimation();
+      }
+    }
+
+    if (victoryCards.length > 0 && state) {
+      const positions = world.getStore(PositionDef);
+      const { layout: lay } = state;
+
+      for (const vc of victoryCards) {
+        vc.vy += lay.cardH * 0.015;
+        vc.x += vc.vx;
+        vc.y += vc.vy;
+
+        if (vc.y > lay.canvasH - lay.cardH) {
+          vc.y = lay.canvasH - lay.cardH;
+          vc.vy *= -0.5;
+          if (Math.abs(vc.vy) < 1)
+            vc.vy = 0;
+        }
+        if (vc.x < 0) {
+          vc.x = 0;
+          vc.vx *= -0.5;
+        }
+        if (vc.x > lay.canvasW - lay.cardW) {
+          vc.x = lay.canvasW - lay.cardW;
+          vc.vx *= -0.5;
+        }
+
+        positions.set(vc.card.id, { x: vc.x, y: vc.y });
+      }
+
+      const orders = world.getStore(RenderOrderDef);
+      victoryCards.forEach((vc, i) => {
+        orders.set(vc.card.id, { value: 200000 + i });
+      });
+    }
+
+    if (victoryCards.length === 0)
+      syncLayout(world, state, drag);
+    renderFrame(ctx2d, world, atlases, state);
+  });
 
   newDeal();
-  loop();
 
-  return () => {
-    disposed = true;
-    abort.abort();
-    cancelAnimationFrame(rafId);
-    container.innerHTML = '';
-  };
+  return () => shell.dispose();
 }
 
 function cloneState(s: GameState): GameState {

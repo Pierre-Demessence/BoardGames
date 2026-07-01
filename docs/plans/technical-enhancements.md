@@ -7,6 +7,7 @@
 ## 🔴 Critical Gaps
 
 ### 1. Zero Tests
+
 **Status:** Vitest configured (`vitest.config.ts`, `jsdom` environment, v8 coverage) but **zero `.test.ts` files exist**.
 
 Testable pure functions (no DOM, no canvas — data in, data out):
@@ -21,6 +22,7 @@ Testable pure functions (no DOM, no canvas — data in, data out):
 | `src/games/spider/game.ts` | `canDragRun`, `canDropOnColumn`, `removeCompletedRuns`, `dealFromStock`, `isWon`, `dealNewGame` |
 
 **Tasks:**
+
 - [x] Write unit tests for `src/shared/cards.ts` (5 tests)
 - [x] Write unit tests for `src/shared/deck.ts` (10 tests)
 - [x] Write unit tests for `src/shared/layout.ts` (12 tests)
@@ -31,6 +33,7 @@ Testable pure functions (no DOM, no canvas — data in, data out):
 ---
 
 ### 2. Missing Mandatory Documentation
+
 Per the project workflow rules (`pierre-workflow.instructions.md`), these are required:
 
 | Required Doc | Exists? |
@@ -43,6 +46,7 @@ Per the project workflow rules (`pierre-workflow.instructions.md`), these are re
 | `/docs/agent/README.md` | ❌ |
 
 **Tasks:**
+
 - [x] Create `README.md` — one-page: description, badges, one-line install + run, link to `/docs/INDEX.md`
 - [x] Create `/docs/INDEX.md` — table of contents for all docs
 - [x] Create `/docs/tech-stack.md` — TypeScript 5.9, Vite 8, @pierre/ecs, Vitest 4, ESLint (antfu), jsdom, Kenney assets
@@ -55,6 +59,7 @@ Per the project workflow rules (`pierre-workflow.instructions.md`), these are re
 ## 🟡 Architecture & Code Quality
 
 ### 3. Significant Boilerplate Duplication
+
 Each game's `index.ts` (~80–120 lines) repeats the same pattern almost verbatim:
 
 - Canvas + 2D context creation with identical CSS
@@ -66,6 +71,7 @@ Each game's `index.ts` (~80–120 lines) repeats the same pattern almost verbati
 - `container.innerHTML = ''` on dispose
 
 The `render.ts` files also duplicate:
+
 - `roundRect()` helper (solitaire & spider — blackjack doesn't need it)
 - `drawSlot()` (solitaire & spider)
 - `drawBanner()` (all 3 — solitaire/spider identical, blackjack similar)
@@ -88,22 +94,26 @@ function createGameShell(config: GameShellConfig): () => void;
 ```
 
 **Tasks:**
-- [ ] Create `src/shared/shell.ts` — `createGameShell()` factory
-- [ ] Migrate blackjack `index.ts` to use GameShell
-- [ ] Migrate solitaire `index.ts` to use GameShell
-- [ ] Migrate spider `index.ts` to use GameShell
-- [ ] Remove duplicated `makeWorld()`, canvas setup, bar creation, rAF loop, dispose
+
+- [x] Create `src/shared/shell.ts` — `createGameShell()` factory + `makeWorld()`
+- [x] Migrate blackjack `index.ts` to use GameShell
+- [x] Migrate solitaire `index.ts` to use GameShell
+- [x] Migrate spider `index.ts` to use GameShell
+- [x] Remove duplicated `makeWorld()`, canvas setup, bar creation, rAF loop, dispose
 
 ---
 
 ### 4. Hub Depends on Specific Game (Solitaire)
+
 `src/hub.ts` imports `GameResources` from `../games/solitaire/index`. Spider also imports from `../solitaire`. This means:
+
 - The hub and spider both import the Solitaire game module
 - `GameResources` is a shared concept but lives in a game-specific file
 
 **Recommendation:** Move `GameResources` to `src/shared/index.ts` (or a new `src/shared/resources.ts`) and re-export from solitaire for backward compat, then update hub + spider to import from `../../shared`.
 
 **Tasks:**
+
 - [ ] Define `GameResources` in `src/shared/` (or declare in `src/shared/index.ts`)
 - [ ] Re-export from `src/games/solitaire/index.ts` for backward compat
 - [ ] Update `src/hub.ts` import
@@ -112,6 +122,7 @@ function createGameShell(config: GameShellConfig): () => void;
 ---
 
 ### 5. Magic Numbers & Inconsistent Constants
+
 Constants duplicated or hardcoded across files:
 
 | Constant | Value | Defined In |
@@ -129,12 +140,14 @@ Constants duplicated or hardcoded across files:
 | `AUTO_WIN_DELAY` | `50` | solitaire/index |
 
 **Recommendation:** Consolidate into `src/shared/constants.ts` (or extend `src/shared/layout.ts` / `src/shared/cards.ts`):
+
 - Layout constants: fan ratios, gap ratios, overlap
 - Rendering constants: drag order bump, off-screen offset
 - Audio constants: volume levels
 - UI constants: bar height, dealer delay
 
 **Tasks:**
+
 - [x] Create `src/shared/constants.ts` with all shared magic numbers
 - [x] Update all game files to import from shared constants
 - [x] Remove local duplicate definitions
@@ -142,6 +155,7 @@ Constants duplicated or hardcoded across files:
 ---
 
 ### 6. `noUncheckedIndexedAccess` Is Off
+
 `tsconfig.json` has `strict: true` but omits `noUncheckedIndexedAccess`.
 
 The codebase uses many non-null assertions (`!`) on array accesses that this flag would catch:
@@ -157,6 +171,7 @@ deck.pop()!                   // Assumes non-empty deck
 ```
 
 **Tasks:**
+
 - [ ] Add `"noUncheckedIndexedAccess": true` to `tsconfig.json`
 - [ ] Fix resulting type errors with proper narrowing (not `!`)
 - [ ] Where narrowing is impossible, use explicit `throw new Error(...)` for invariant violations
@@ -164,6 +179,7 @@ deck.pop()!                   // Assumes non-empty deck
 ---
 
 ### 7. No Code Splitting
+
 All 3 games + shared code are in one bundle. With the hub as a menu:
 
 **Recommendation:** Lazy-load each game via dynamic `import()`:
@@ -182,12 +198,14 @@ const GAMES: GameDef[] = [
 ```
 
 Benefits:
+
 - Hub loads instantly (~5 KB)
 - Games load on demand
 - Per-game error isolation (one game crash doesn't break the hub)
 - Enables future code-splitting of shared code if games diverge
 
 **Tasks:**
+
 - [ ] Convert `GameDef.start` to a lazy `load()` pattern
 - [ ] Update `startHub` to `await game.load()` on selection
 - [ ] Show loading state while dynamically importing
@@ -197,6 +215,7 @@ Benefits:
 ## 🟢 Smaller Improvements
 
 ### 8. Silent Error Swallowing in Audio
+
 `src/shared/audio.ts` `playCardSfx()`:
 
 ```ts
@@ -208,36 +227,44 @@ catch {
 Add at minimum `console.warn` so failures are discoverable during development.
 
 **Tasks:**
+
 - [ ] Add `console.warn('board-games: SFX play failed:', error)` in the catch block
 
 ---
 
 ### 9. No Keyboard / Accessibility Support
+
 - All buttons lack `aria-label` attributes
 - Canvas-only rendering has zero screen-reader support
 - No keyboard shortcuts for any game action
 
 **Tasks:**
+
 - [ ] Add `aria-label` to all buttons
 - [ ] Add keyboard shortcuts: `H` = Hit, `S` = Stand (Blackjack); `N` = New deal (all games); `Backspace` = Back to hub
 
 ---
 
 ### 10. `index.html` Missing Viewport Meta
+
 Missing `<meta name="viewport" content="width=device-width, initial-scale=1.0">` — prevents proper scaling on mobile browsers.
 
 Also missing common `<meta>` tags:
+
 - `<meta name="description">`
 - `<meta name="theme-color" content="#0b3d2e">`
 
 **Tasks:**
+
 - [ ] Add viewport meta tag
 - [ ] Add description and theme-color meta tags
 
 ---
 
 ### 11. `.gitignore` Gaps
+
 Current:
+
 ```
 node_modules/
 dist/
@@ -247,6 +274,7 @@ dist/
 ```
 
 Missing:
+
 ```
 coverage/
 test-results/
@@ -254,11 +282,13 @@ test-results/
 ```
 
 **Tasks:**
+
 - [ ] Add `coverage/`, `test-results/`, `*.tsbuildinfo` to `.gitignore`
 
 ---
 
 ### 12. Inline CSS via String Concatenation
+
 All styling uses `.style.cssText = '...'` with manual string concatenation. This is verbose, untyped, and hard to maintain consistently.
 
 **Recommendation:** Even a minimal improvement — a `css` tagged template literal or a shared styles object:
@@ -271,24 +301,29 @@ const BUTTON_SECONDARY = 'padding:4px 12px;font:inherit;font-weight:600;color:#c
 ```
 
 **Tasks:**
+
 - [ ] Create `src/shared/styles.ts` with shared CSS constants
 - [ ] Update all game files to use shared style constants
 
 ---
 
 ### 13. AudioContext Never Closed
+
 The `AudioContext` created in `src/main.ts` is never `.close()`d. The `start()` return value (dispose function) should close it.
 
 **Tasks:**
+
 - [ ] Close `audioCtx` in the `start()` dispose callback
 - [ ] Guard with `audioCtx.state !== 'closed'` check
 
 ---
 
 ### 14. Unused `spider.ts` Import Triggering Module Side Effects
+
 `hub.ts` eagerly imports all 3 game modules at the top. This means all game code (including their ECS world registrations) runs before any game is selected. Combined with code-splitting (item 7), this would be eliminated.
 
 **Tasks:**
+
 - [ ] (Covered by item 7 — code splitting)
 
 ---
@@ -314,6 +349,7 @@ The `AudioContext` created in `src/main.ts` is never `.close()`d. The `start()` 
 ---
 
 ## Dependency Order (Recommended)
+
 1. Docs (item 2) — no dependencies, establishes context
 2. Constants consolidation (item 5) — foundation for later refactors
 3. Move `GameResources` (item 4) — fixes import architecture

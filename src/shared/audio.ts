@@ -11,14 +11,13 @@ import { audioBufferAsset } from '@pierre/ecs/modules/asset-loader';
 import { WebAudioProvider } from '@pierre/ecs/modules/audio';
 import { pick } from '@pierre/ecs/modules/rng';
 
-import { SFX_VOLUME } from './constants';
-
 import place1Url from '../../assets/kenney_boardgame-pack/Bonus/cardPlace1.ogg?url';
 import place2Url from '../../assets/kenney_boardgame-pack/Bonus/cardPlace2.ogg?url';
 import place3Url from '../../assets/kenney_boardgame-pack/Bonus/cardPlace3.ogg?url';
 import slide1Url from '../../assets/kenney_boardgame-pack/Bonus/cardSlide1.ogg?url';
 import slide2Url from '../../assets/kenney_boardgame-pack/Bonus/cardSlide2.ogg?url';
 import slide3Url from '../../assets/kenney_boardgame-pack/Bonus/cardSlide3.ogg?url';
+import { SFX_VOLUME } from './constants';
 
 const slideUrls = [slide1Url, slide2Url, slide3Url];
 const placeUrls = [place1Url, place2Url, place3Url];

@@ -10,11 +10,7 @@ import type { EntityId } from '@pierre/ecs';
 import type { GameResources } from '../solitaire';
 import type { GameState } from './game';
 
-import { EcsWorld } from '@pierre/ecs';
-import { RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
-import { PositionDef } from '@pierre/ecs/modules/transform';
-
-import { BAR_HEIGHT, playCardSfx } from '../../shared';
+import { BAR_HEIGHT, createGameShell, makeWorld, playCardSfx } from '../../shared';
 import { computeLayout } from '../../shared/layout';
 import {
   checkNaturalBlackjack,
@@ -25,65 +21,18 @@ import {
 } from './game';
 import { renderFrame, syncLayout } from './render';
 
-const BLACKJACK_SLOTS = 12; // enough for many cards in a hand
-
-function makeWorld(): EcsWorld {
-  const world = new EcsWorld();
-  world.registerComponent(PositionDef);
-  world.registerComponent(RenderableDef);
-  world.registerComponent(RenderOrderDef);
-  return world;
-}
+const BLACKJACK_SLOTS = 12;
+const DEALER_DELAY = 600;
 
 export function start(container: HTMLElement, resources: GameResources, onBack: () => void): () => void {
   const containerRect = container.getBoundingClientRect();
   const layout = computeLayout(containerRect.width, containerRect.height - BAR_HEIGHT, BLACKJACK_SLOTS);
 
-  container.innerHTML = '';
-
-  const canvas = document.createElement('canvas');
-  canvas.width = layout.canvasW;
-  canvas.height = layout.canvasH;
-  canvas.style.cssText = `display:block;width:${layout.canvasW}px;height:${layout.canvasH}px;`
-    + 'margin:0 auto;border-radius:10px;touch-action:none;cursor:default';
-  const ctx2d = canvas.getContext('2d')!;
-
-  const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;gap:12px;align-items:center;justify-content:center;'
-    + `padding:8px 10px;font:13px system-ui;color:#cde;flex-shrink:0;height:${BAR_HEIGHT}px;box-sizing:border-box`;
-
-  const backBtn = document.createElement('button');
-  backBtn.textContent = '← Games';
-  backBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#cde;'
-    + 'background:#2a5a4a;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const hitBtn = document.createElement('button');
-  hitBtn.textContent = 'Hit';
-  hitBtn.style.cssText = 'padding:4px 16px;font:inherit;font-weight:600;color:#fff;'
-    + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const standBtn = document.createElement('button');
-  standBtn.textContent = 'Stand';
-  standBtn.style.cssText = 'padding:4px 16px;font:inherit;font-weight:600;color:#fff;'
-    + 'background:#1f6b4f;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  const newDealBtn = document.createElement('button');
-  newDealBtn.textContent = 'New deal';
-  newDealBtn.style.cssText = 'padding:4px 12px;font:inherit;font-weight:600;color:#cde;'
-    + 'background:#2a5a4a;border:1px solid #3fbf8f;border-radius:6px;cursor:pointer';
-
-  bar.append(backBtn, hitBtn, standBtn, newDealBtn);
-  container.append(bar, canvas);
-
   const { atlases, audio } = resources;
-  const abort = new AbortController();
 
-  let disposed = false;
   let world = makeWorld();
   let state: GameState | null = null;
-  let rafId = 0;
   let nextDealerHitTime = 0;
-  const DEALER_DELAY = 600; // ms between dealer card reveals
 
   const updateButtons = (): void => {
     if (!state) {
@@ -101,11 +50,14 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     state = dealNewGame((): EntityId => world.createEntity(), layout);
     nextDealerHitTime = 0;
     updateButtons();
-
-    if (checkNaturalBlackjack(state)) {
+    if (checkNaturalBlackjack(state))
       updateButtons();
-    }
   };
+
+  const shell = createGameShell(container, layout.canvasW, layout.canvasH, onBack, newDeal, 'default');
+
+  const hitBtn = shell.addButton('Hit', true);
+  const standBtn = shell.addButton('Stand', true);
 
   const onHit = (): void => {
     if (!state || state.status !== 'playerTurn')
@@ -124,50 +76,31 @@ export function start(container: HTMLElement, resources: GameResources, onBack: 
     updateButtons();
   };
 
-  const onBackClick = (): void => {
-    disposed = true;
-    abort.abort();
-    cancelAnimationFrame(rafId);
-    container.innerHTML = '';
-    onBack();
-  };
+  hitBtn.addEventListener('click', onHit, { signal: shell.signal });
+  standBtn.addEventListener('click', onStand, { signal: shell.signal });
 
-  hitBtn.addEventListener('click', onHit, { signal: abort.signal });
-  standBtn.addEventListener('click', onStand, { signal: abort.signal });
-  newDealBtn.addEventListener('click', newDeal, { signal: abort.signal });
-  backBtn.addEventListener('click', onBackClick, { signal: abort.signal });
+  const { ctx2d } = shell;
 
-  const loop = (): void => {
-    if (disposed)
+  shell.startLoop(() => {
+    if (!state)
       return;
-    if (state) {
-      // Animate dealer hits one card at a time
-      if (state.status === 'dealerTurn') {
-        if (nextDealerHitTime === 0) {
-          nextDealerHitTime = performance.now() + DEALER_DELAY;
-        }
-        else if (performance.now() >= nextDealerHitTime) {
-          playCardSfx(audio, 'slide');
-          const keepGoing = dealerHit(state);
-          if (keepGoing)
-            nextDealerHitTime = performance.now() + DEALER_DELAY;
-          updateButtons();
-        }
+    if (state.status === 'dealerTurn') {
+      if (nextDealerHitTime === 0) {
+        nextDealerHitTime = performance.now() + DEALER_DELAY;
       }
-
-      syncLayout(world, state);
-      renderFrame(ctx2d, world, atlases, state);
+      else if (performance.now() >= nextDealerHitTime) {
+        playCardSfx(audio, 'slide');
+        const keepGoing = dealerHit(state);
+        if (keepGoing)
+          nextDealerHitTime = performance.now() + DEALER_DELAY;
+        updateButtons();
+      }
     }
-    rafId = requestAnimationFrame(loop);
-  };
+    syncLayout(world, state);
+    renderFrame(ctx2d, world, atlases, state);
+  });
 
   newDeal();
-  loop();
 
-  return () => {
-    disposed = true;
-    abort.abort();
-    cancelAnimationFrame(rafId);
-    container.innerHTML = '';
-  };
+  return () => shell.dispose();
 }

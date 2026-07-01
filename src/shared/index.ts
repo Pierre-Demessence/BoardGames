@@ -2,6 +2,7 @@ export type { CardAudio } from './audio';
 export type { Color, Suit } from './cards';
 export type { Card } from './deck';
 export type { CardLayout } from './layout';
+export type { GameShell } from './shell';
 
 export { BACKS_ATLAS, CARDS_ATLAS, loadCardAtlases } from './atlas';
 export { loadCardAudio, playCardSfx } from './audio';
@@ -21,3 +22,4 @@ export {
 } from './constants';
 export { makeDeck, shuffleDeck } from './deck';
 export { computeLayout } from './layout';
+export { createGameShell, makeWorld } from './shell';
