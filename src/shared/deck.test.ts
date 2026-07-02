@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-
 import type { Card } from './deck';
+
+import { describe, expect, it } from 'vitest';
 
 import { makeDeck, shuffleDeck } from './deck';
 

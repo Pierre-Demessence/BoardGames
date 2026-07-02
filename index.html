@@ -30,7 +30,7 @@
 <body>
   <div id="root"></div>
   <script type="module">
-    import { start } from './src/main.ts';
+    import { start } from './src/main.tsx';
     const teardown = start(document.getElementById('root'));
     window.addEventListener('beforeunload', teardown);
   </script>

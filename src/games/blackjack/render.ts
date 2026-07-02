@@ -12,7 +12,7 @@ import type { Card, GameState } from './game';
 import { Canvas2DRenderer, RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
-import { BACKS_ATLAS, CARD_BACK_FRAME, cardFrame, CARDS_ATLAS, HAND_CARD_OVERLAP as CARD_OVERLAP, OFF_SCREEN_X, OFF_SCREEN_Y, OFF_SCREEN_Y_STEP } from '../../shared';
+import { BACKS_ATLAS, CARD_BACK_FRAME, HAND_CARD_OVERLAP as CARD_OVERLAP, cardFrame, CARDS_ATLAS, OFF_SCREEN_X, OFF_SCREEN_Y, OFF_SCREEN_Y_STEP } from '../../shared';
 import { handValue, isBust } from './game';
 
 const renderer = new Canvas2DRenderer();

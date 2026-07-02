@@ -13,10 +13,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@pierre/ecs": "file:../Entity-Cornponent-System-Engine"
+    "@pierre/ecs": "file:../Entity-Cornponent-System-Engine",
+    "preact": "^10.29.2"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^8.0.0",
+    "@preact/preset-vite": "^2.10.5",
     "eslint": "^10.2.0",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.2",

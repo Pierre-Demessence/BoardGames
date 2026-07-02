@@ -1,0 +1,82 @@
+.bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  font: 13px system-ui;
+  color: #cde;
+  flex-shrink: 0;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.canvas {
+  display: block;
+  margin: 0 auto;
+  border-radius: 10px;
+  touch-action: none;
+}
+
+.canvasDefault {
+  cursor: default;
+}
+
+.canvasPointer {
+  cursor: pointer;
+}
+
+.btnPrimary {
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+  background: #1f6b4f;
+  border: 1px solid #3fbf8f;
+}
+
+.btnSecondary {
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #cde;
+  background: #2a5a4a;
+  border: 1px solid #3fbf8f;
+}
+
+.score {
+  font: 700 14px system-ui;
+  color: #ffe14d;
+  min-width: 80px;
+  text-align: center;
+}
+
+.timer {
+  font: 13px system-ui;
+  color: #aac;
+  min-width: 60px;
+  text-align: center;
+}
+
+.hint {
+  font: 13px system-ui;
+  color: #aac;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  font: 18px system-ui;
+  color: #cde;
+}
+
+.error {
+  text-align: center;
+  padding: 60px;
+  font: 18px system-ui;
+  color: #f88;
+}
