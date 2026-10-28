@@ -1,32 +1,41 @@
 # 🎴 Board Games
 
-Card game collection built on [@pierre/ecs](https://github.com/pierre/ecs) — a TypeScript ECS engine with Canvas2D rendering.
-
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-8.0-646cff)](https://vitejs.dev/)
-[![Vitest](https://img.shields.io/badge/Vitest-4.1-6e9f28)](https://vitest.dev/)
-
-## Quick Start
-
-```bash
-npm install
-npm run dev      # → http://localhost:5184
-npm run build    # typecheck + production build
-npm test         # run tests
-npm run lint     # ESLint check
-```
+A collection of card games for the browser, built with Preact on the
+`@pierre/ecs` engine.
 
 ## Games
 
-| Game | Description |
-|------|-------------|
-| **Solitaire** | Klondike (draw-1) with Windows-style scoring, auto-win, and victory animation |
-| **Spider** | 1-suit Spider — build 8 complete King→Ace runs |
-| **Blackjack** | Classic 21 — hit or stand against the dealer |
+- **Solitaire** — Klondike, draw-1, with Windows-style scoring and timer. Once
+  the stock is empty and every card is face up, the remaining cards finish on
+  their own, followed by a bouncing-cards victory animation.
+- **Spider** — 1-suit (all Spades), 104 cards in 10 columns. Completed
+  King-to-Ace runs clear themselves; the stock deals one card to each column.
+- **Blackjack** — classic 21 against a dealer who draws to 17. Hit or stand; a
+  natural blackjack ends the round at once.
 
-## Documentation
+A menu lists the games, every game has Back and New deal buttons, and card
+sounds play when audio is available.
 
-See [`/docs/INDEX.md`](./docs/INDEX.md) for the full documentation index.
+## Setup
+
+The engine must be checked out next to this repository as
+`../Entity-Cornponent-System-Engine`; it is installed from there as a local
+dependency.
+
+```bash
+npm install
+npm run dev      # http://localhost:5184
+npm run build    # typecheck + production build
+npm test
+npm run lint
+```
+
+Layout and conventions for contributors are in [AGENTS.md](AGENTS.md); open
+work is in [docs/backlog.md](docs/backlog.md).
+
+## Credits
+
+Card art and sounds come from [Kenney](https://kenney.nl/) asset packs (CC0).
 
 ## License
 

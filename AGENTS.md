@@ -1,0 +1,90 @@
+# AGENTS.md
+
+Project rules for AI coding agents working on BoardGames. They supplement the
+global agent instructions.
+
+## What this is
+
+A browser collection of card games: Klondike Solitaire, 1-suit Spider and
+Blackjack. Preact renders the menu and each game's control bar; the cards are
+drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
+
+## Commands
+
+- `npm run dev` — Vite dev server on port 5184.
+- `npm run build` — `tsc --noEmit`, then `vite build`.
+- `npm run lint` / `npm run lint:fix` — ESLint (antfu flat config with
+  perfectionist sorting of imports, exports, objects and interfaces).
+- `npm test` / `npm run test:watch` — Vitest in jsdom. Tests sit next to their
+  source as `*.test.ts`.
+
+## Layout
+
+- `index.html` — mounts `#root` and calls `start()` from `src/main.tsx`.
+- `src/main.tsx` — `AppLoader` loads the card atlases and audio once, then `App`
+  switches between the hub and the selected game.
+- `src/hub.tsx` — the game selector; its `GAMES` array lists what the menu shows.
+- `src/shared/` — code every game uses, re-exported by the `index.ts` barrel:
+  card and deck model, atlas and SFX loading, viewport layout (`computeLayout`),
+  shared constants, `GameResources`, and `GameShell` + `makeWorld` (`shell.tsx`).
+- `src/games/<name>/` — one folder per game: `game.ts` (rules and state),
+  `render.ts` (`syncLayout` + `renderFrame`), `index.tsx` (the Preact component:
+  input, rAF loop, extra controls).
+- `assets/` — Kenney asset packs (CC0), imported with `?url`.
+- `docs/` — [`backlog.md`](docs/backlog.md) (all open work) and `plans/` (exists only
+  while a plan is in progress).
+
+## Conventions
+
+- **Game logic is pure.** `game.ts` has no DOM, canvas or ECS world access: it
+  receives an entity-id factory and transforms plain state, so it can be unit
+  tested.
+- **Cards render through ECS.** Each frame, `syncLayout()` writes `PositionDef`,
+  `RenderableDef` and `RenderOrderDef` for every card entity, then
+  `renderFrame()` draws with the engine's `Canvas2DRenderer`. Solitaire's
+  victory animation skips `syncLayout()` and positions the cards itself.
+- **Game components own their loop.** `index.tsx` keeps mutable game state in
+  `useRef`, runs the rAF loop and pointer listeners in `useEffect`, and cleans up
+  in the effect's return (`cancelAnimationFrame`, `AbortController.abort()`).
+  `GameShell` is presentational: control bar, Back and New deal buttons, canvas.
+- **Styles live in CSS modules** (`*.module.css`). Inline `style` is only for
+  computed values such as the canvas size.
+- **No cross-game imports.** Anything two games need moves to `src/shared/` and
+  is re-exported from `src/shared/index.ts`.
+- **Shared constants** (layout ratios, drag and off-screen offsets, SFX volume,
+  bar height) live in `src/shared/constants.ts`; game-specific ones (dealer
+  delay, auto-win delay) stay in their game.
+- **SFX playback is non-essential.** `playCardSfx()` no-ops without audio and
+  only warns when a clip fails.
+- **Naming:** kebab-case files, PascalCase types and components, camelCase
+  functions, SCREAMING_SNAKE module-level constants; ECS component definitions
+  end in `Def`.
+- **`erasableSyntaxOnly` is on:** no enums, namespaces or constructor parameter
+  properties; use `as const` objects and explicit fields.
+
+## Adding a game
+
+1. Create `src/games/<name>/` with `game.ts`, `render.ts` and `index.tsx`.
+2. Export a component taking `{ resources: GameResources, onBack: () => void }`
+   that renders `GameShell`.
+3. Add a `GameDef` to `GAMES` in `src/hub.tsx` and a `case` for its id in `App`
+   in `src/main.tsx`.
+
+## Engine dependency
+
+`@pierre/ecs` is a `file:` link to the sibling checkout
+`../Entity-Cornponent-System-Engine`, not a pinned version, so engine changes
+reach this project on the next typecheck.
+
+- Its `EntityId` is branded: get ids from `world.createEntity()`; a plain
+  `number` does not type-check.
+- Before hand-rolling a helper, check the engine's generated API catalog,
+  `../Entity-Cornponent-System-Engine/docs/agent/engine-api.md`.
+- Never edit the engine from this repo; report the change it needs.
+
+## Working rules
+
+- The user runs the dev server and does all manual and browser testing. Don't
+  start or stop the dev server or run browser automation without asking; verify
+  with lint, build and tests, then hand off.
+- Commit only on explicit request; never push.
