@@ -2,6 +2,8 @@
  * Blackjack (21) — game state, deck, hand values, and dealer rules.
  */
 
+import type { EntityId } from '@pierre/ecs';
+
 import type { Card } from '../../shared';
 import type { CardLayout } from '../../shared/layout';
 
@@ -60,7 +62,7 @@ export function isBlackjack(hand: Card[]): boolean {
 
 // --- Deck & deal ---
 
-export function dealNewGame(createEntity: () => number, layout: CardLayout): GameState {
+export function dealNewGame(createEntity: () => EntityId, layout: CardLayout): GameState {
   const deck = makeDeck(createEntity);
   shuffleDeck(deck);
 

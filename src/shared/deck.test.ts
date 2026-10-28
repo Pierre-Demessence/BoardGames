@@ -1,12 +1,15 @@
+import type { EntityId } from '@pierre/ecs';
+
 import type { Card } from './deck';
 
+import { eid } from '@pierre/ecs/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import { makeDeck, shuffleDeck } from './deck';
 
-function entityCounter(): () => number {
+function entityCounter(): () => EntityId {
   let id = 0;
-  return () => ++id;
+  return () => eid(++id);
 }
 
 describe('makeDeck', () => {
@@ -53,9 +56,9 @@ describe('makeDeck', () => {
   });
 
   it('uses the provided createEntity function', () => {
-    const ids: number[] = [];
+    const ids: EntityId[] = [];
     const deck = makeDeck(() => {
-      const id = Math.random();
+      const id = eid(ids.length);
       ids.push(id);
       return id;
     });
@@ -81,10 +84,10 @@ describe('shuffleDeck', () => {
   });
 
   it('handles a single-card deck', () => {
-    const deck: Card[] = [{ id: 1, faceUp: false, rank: 5, suit: 'Hearts' }];
+    const deck: Card[] = [{ id: eid(1), faceUp: false, rank: 5, suit: 'Hearts' }];
     shuffleDeck(deck);
     expect(deck).toHaveLength(1);
-    expect(deck[0]!.id).toBe(1);
+    expect(deck[0]!.id).toBe(eid(1));
   });
 
   it('produces a different ordering from a sorted deck (probabilistic)', () => {
