@@ -7,15 +7,6 @@ Online play is out of scope (B31).
 
 Next ID: M5
 
-## M1 Dice and players
-
-The first game that is not cards, and the first with more than one player.
-
-- M1.3 Yahtzee computer player: picks which dice to hold and which box to score.
-
-Done when two people and a computer player can finish a Yahtzee game on one
-screen, and the computer's choices are covered by rules tests from fixed seeds.
-
 ## M2 Board kit and Connect Four
 
 - M2.1 Board kit and Connect Four for two people: `src/kits/board/` holds the grid

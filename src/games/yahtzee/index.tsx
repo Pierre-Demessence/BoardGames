@@ -31,15 +31,13 @@ import {
   useCanvasGame,
 } from '../../core';
 import { createDiceWorld, DIE_FACES, playDiceSfx, syncDiceSprites } from '../../kits/dice';
-import { computerMove } from './computer';
+import { computerDelay, computerMove } from './computer';
 import { DICE_COUNT, LOWER_BOXES, MAX_ROLLS, MAX_SEATS, totals, UPPER_BOXES, yahtzeeRules } from './rules';
 import { Scorecard } from './scorecard';
 import { dieAt, drawTable, placements, resultText, yahtzeeLayout } from './view';
 
 const TURNS = UPPER_BOXES.length + LOWER_BOXES.length;
 const TUMBLE_MS = 500;
-/** Pause before each computer action; longer than the tumble, so a roll settles before the score. */
-const COMPUTER_DELAY = 800;
 /** Side panel width for one seat is the default; each seat beyond it adds a column. */
 const SIDE_BASE = 140;
 const SIDE_COLUMN = 64;
@@ -69,6 +67,8 @@ interface Runtime {
   session: Session<YahtzeeState, YahtzeeMove, YahtzeeOptions>;
   tumble: Tumble | null;
   turns: ComputerTurns;
+  /** `performance.now()` when the computer's turn began; paces its score. */
+  turnStartedAt: number;
   /** Reacts to a computer move; replaced on every render so it sees the current handlers. */
   handleComputerMove: (move: YahtzeeMove) => void;
 }
@@ -85,9 +85,15 @@ function createRuntime(): Runtime {
     layout: null,
     session,
     tumble: null,
+    turnStartedAt: 0,
     turns: createComputerTurns(session, {
-      delayMs: COMPUTER_DELAY,
       onMove: move => runtime.handleComputerMove(move),
+      delayMs: () => {
+        const now = performance.now();
+        if (session.state.rollsUsed === 0)
+          runtime.turnStartedAt = now;
+        return computerDelay(computerMove(session.state), now - runtime.turnStartedAt);
+      },
     }),
     handleComputerMove: () => {},
   };

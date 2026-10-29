@@ -6,8 +6,8 @@
 import type { Session } from './session';
 
 export interface ComputerTurnsOptions<M> {
-  /** Milliseconds before each computer move. */
-  delayMs: number;
+  /** Milliseconds before each computer move; a function is called once before each move. */
+  delayMs: number | (() => number);
   /** Called after each applied move, for the game's sound, animation and redraw. */
   onMove: (move: M) => void;
 }
@@ -45,7 +45,7 @@ export function createComputerTurns<S, M, O>(
         return;
       onMove(move);
       schedule();
-    }, delayMs);
+    }, typeof delayMs === 'function' ? delayMs() : delayMs);
   }
 
   return { cancel, schedule };

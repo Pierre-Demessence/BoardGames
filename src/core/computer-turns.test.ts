@@ -21,10 +21,10 @@ const rules: GameRules<State, 'go', { kinds: SeatKind[] }> = {
     state.moves >= 6 ? null : { moves: state.moves + 1, seats: passTurn(state.seats) },
 };
 
-function setup(kinds: SeatKind[]) {
+function setup(kinds: SeatKind[], delayMs: number | (() => number) = 800) {
   const session = createSession(rules, { options: { kinds }, undoable: true, computer: (): 'go' => 'go' });
   const onMove = vi.fn();
-  const turns = createComputerTurns(session, { delayMs: 800, onMove });
+  const turns = createComputerTurns(session, { delayMs, onMove });
   return { onMove, session, turns };
 }
 
@@ -81,5 +81,29 @@ describe('createComputerTurns', () => {
     expect(session.state.moves).toBe(1);
     vi.advanceTimersByTime(800);
     expect(session.state.moves).toBe(2);
+  });
+
+  it('asks a delay function once before each move and waits the time it returns', () => {
+    const delays = [300, 900];
+    const delayMs = vi.fn(() => delays.shift() ?? 0);
+    const { session, turns } = setup(['computer', 'computer'], delayMs);
+    turns.schedule();
+    expect(delayMs).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(299);
+    expect(session.state.moves).toBe(0);
+    vi.advanceTimersByTime(1);
+    expect(session.state.moves).toBe(1);
+    expect(delayMs).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(899);
+    expect(session.state.moves).toBe(1);
+    vi.advanceTimersByTime(1);
+    expect(session.state.moves).toBe(2);
+  });
+
+  it('does not ask the delay function on a human turn', () => {
+    const delayMs = vi.fn(() => 100);
+    const { turns } = setup(['human', 'computer'], delayMs);
+    turns.schedule();
+    expect(delayMs).not.toHaveBeenCalled();
   });
 });

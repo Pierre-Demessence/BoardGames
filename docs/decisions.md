@@ -37,3 +37,8 @@ The dice's random generator position (`rngState`) is part of the game state, so 
 ## Yahtzee's scorecard is DOM beside the canvas
 
 The scorecard is a Preact table next to the canvas, not drawn on it. Text stays crisp at any pixel density, open boxes are real buttons with hover and keyboard focus, and the canvas stays the dice only. The cost is that `GameFrame` has a `side` slot and the canvas area is narrower; a canvas-drawn card would need hit testing and focus handling by hand.
+
+## The Yahtzee computer plans one turn at a time
+
+At its turn the computer values every set of five dice for its own sheet and works back through the rolls left, averaging over every way the other dice can land. The fully optimal strategy, a table over every reachable scorecard (about 500 000 states), averages about 255 against about 239 here, and costs seconds of precomputation or a multi-megabyte table. The engine's `game-search` does not fit: it has no chance step and plays against a fixed future, which here means reading `rngState`; and a Yahtzee seat maximizes points, not a win. The computer ignores the opponents' sheets and never reads `rngState`, so it plays for its best total and cannot peek at the next roll.
+

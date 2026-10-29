@@ -38,8 +38,8 @@ Yahtzee's scorecard; the cards and dice are drawn on a canvas through the user's
   options?)`, injectable clock and seed source; with seats it also clears the history when
   the seat to play changes, rejects moves while a computer plays and offers
   `playComputer()`), `computer-turns.ts` (`createComputerTurns`: one computer move per
-  `delayMs`, `schedule`/`cancel`), `seat-picker.tsx` (the Human/Computer form per seat),
-  `use-canvas-game.ts` (the
+  `delayMs`, a number or a function asked before each move, `schedule`/`cancel`),
+  `seat-picker.tsx` (the Human/Computer form per seat), `use-canvas-game.ts` (the
   canvas hook: sizing by `ResizeObserver` at `devicePixelRatio`, pointer events in
   CSS pixels, frames only on `invalidate()` or while `animating()`),
   `game-frame.tsx` (control bar with Back, New deal and an optional Undo, an optional
@@ -62,7 +62,8 @@ Yahtzee's scorecard; the cards and dice are drawn on a canvas through the user's
   buttons, extra controls), with `*.test.ts` beside them. Yahtzee adds
   `scorecard.tsx`: a DOM table beside the canvas with a column per seat (crisp text,
   hover and keyboard focus), tested with `scorecard.test.tsx`, and `computer.ts`, the
-  computer seats' player.
+  computer seats' player: it plans one turn (which dice to hold, which box to score) and
+  `computerDelay` paces it.
 - `assets/` — Kenney asset packs (CC0), imported with `?url`.
 - `docs/` — [`roadmap.md`](docs/roadmap.md) (milestone order and what finishes
   each), [`backlog.md`](docs/backlog.md) (all open work),

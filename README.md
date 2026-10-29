@@ -14,8 +14,9 @@ A collection of card and dice games for the browser, built with Preact on the
   natural blackjack ends the round at once.
 - **Yahtzee** — five dice and 13 turns for 1 to 4 players, each a person or the
   computer: roll up to three times, hold the dice you want and fill the scorecard
-  by the official rules, bonuses and joker rule included. The computer plays
-  simply for now.
+  by the official rules, bonuses and joker rule included. A computer seat plans
+  each turn: it holds the dice that give it the best chances and scores the box
+  worth the most.
 
 A menu lists the games, every game has Back and New deal (New game in Yahtzee)
 buttons, and card and dice sounds play when audio is available.
