@@ -1,157 +1,128 @@
 /**
  * Blackjack (21) — Preact game component.
  *
- * Turn-based: player hits or stands via buttons, dealer follows fixed rules.
- * Canvas rendering + ECS tick runs in a rAF loop via useEffect.
+ * The rules live in `rules.ts`, the geometry and drawing in `view.ts`. This
+ * component wires them to the session and the canvas hook, and plays the
+ * dealer's turn one step at a time on a timer. There is no Undo: a hit cannot
+ * be taken back.
  */
 
-import type { EntityId } from '@pierre/ecs';
+import type { GameProps, Session, Size } from '../../core';
+import type { BlackjackMove, BlackjackState } from './rules';
+import type { BlackjackLayout } from './view';
 
-import type { GameResources } from '../../core';
-import type { CardLayout } from '../../shared/layout';
-import type { GameState } from './game';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { createSession, GameFrame, useCanvasGame } from '../../core';
+import frameStyles from '../../core/game-frame.module.css';
+import { createCardWorld, playCardSfx, syncCardSprites } from '../../kits/cards';
+import { blackjackRules } from './rules';
+import { blackjackLayout, drawTable, placements } from './view';
 
-import { BAR_HEIGHT, computeLayout, GameShell, makeWorld, playCardSfx } from '../../shared';
-import shellStyles from '../../shared/shell.module.css';
-import {
-  checkNaturalBlackjack,
-  dealerHit,
-  dealNewGame,
-  hit,
-  stand,
-} from './game';
-import { renderFrame, syncLayout } from './render';
-
-const BLACKJACK_SLOTS = 12;
+const CARD_COUNT = 52;
+/** Pause between the dealer's actions, so the player can follow them. */
 const DEALER_DELAY = 600;
 
-export interface BlackjackGameProps {
-  resources: GameResources;
-  onBack: () => void;
+/** Everything the handlers share; mutable, so it never triggers a render. */
+interface Runtime {
+  board: ReturnType<typeof createCardWorld>;
+  dealerTimer: ReturnType<typeof setTimeout> | null;
+  layout: BlackjackLayout | null;
+  session: Session<BlackjackState, BlackjackMove>;
 }
 
-export function BlackjackGame({ onBack, resources }: BlackjackGameProps) {
+function createRuntime(): Runtime {
+  return {
+    board: createCardWorld(CARD_COUNT),
+    dealerTimer: null,
+    layout: null,
+    session: createSession(blackjackRules, { options: undefined, undoable: false }),
+  };
+}
+
+export function BlackjackGame({ onBack, resources }: GameProps) {
   const { atlases, audio } = resources;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const worldRef = useRef(makeWorld());
-  const stateRef = useRef<GameState | null>(null);
-  const nextDealerHitTimeRef = useRef(0);
+  const runtimeRef = useRef<Runtime | null>(null);
+  runtimeRef.current ??= createRuntime();
+  const rt = runtimeRef.current;
 
-  const [layout, setLayout] = useState<CardLayout | null>(null);
-  const [playing, setPlaying] = useState(false);
+  const [, setRevision] = useState(0);
+  const refresh = (): void => setRevision(r => r + 1);
 
-  // Measure viewport and compute layout on mount
-  useEffect(() => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    setLayout(computeLayout(w, h - BAR_HEIGHT, BLACKJACK_SLOTS));
-  }, []);
+  const { areaRef, canvasRef, invalidate } = useCanvasGame({
+    draw(ctx, size) {
+      const layout = rt.layout;
+      if (!layout)
+        return;
+      syncCardSprites(rt.board.world, rt.board.entityOf, placements(rt.session.state, layout), layout);
+      drawTable(ctx, size, layout, rt.session.state, rt.board.world, atlases);
+    },
+    onResize(size: Size) {
+      rt.layout = blackjackLayout(size);
+    },
+  });
 
-  const newDeal = useCallback(() => {
-    const world = makeWorld();
-    worldRef.current = world;
-    const state = dealNewGame((): EntityId => world.createEntity(), layout!);
-    stateRef.current = state;
-    nextDealerHitTimeRef.current = 0;
-    if (checkNaturalBlackjack(state)) {
-      setPlaying(false);
-    }
-    else {
-      setPlaying(state.status === 'playerTurn');
-    }
-  }, [layout]);
+  function clearDealerTimer(): void {
+    if (rt.dealerTimer !== null)
+      clearTimeout(rt.dealerTimer);
+    rt.dealerTimer = null;
+  }
 
-  const handleHit = useCallback(() => {
-    const state = stateRef.current;
-    if (!state || state.status !== 'playerTurn')
+  /** Plays the dealer's turn: one action every DEALER_DELAY until the round is over. */
+  function scheduleDealer(): void {
+    clearDealerTimer();
+    if (rt.session.state.phase !== 'dealer')
+      return;
+    rt.dealerTimer = setTimeout(() => {
+      rt.dealerTimer = null;
+      const cardsBefore = rt.session.state.dealer.length;
+      rt.session.apply({ type: 'dealerStep' });
+      if (rt.session.state.dealer.length > cardsBefore)
+        playCardSfx(audio, 'slide');
+      afterMove();
+    }, DEALER_DELAY);
+  }
+
+  function afterMove(): void {
+    refresh();
+    invalidate();
+    scheduleDealer();
+  }
+
+  function hit(): void {
+    if (!rt.session.apply({ type: 'hit' }))
       return;
     playCardSfx(audio, 'slide');
-    hit(state);
-    setPlaying(state.status === 'playerTurn');
-  }, [audio]);
+    afterMove();
+  }
 
-  const handleStand = useCallback(() => {
-    const state = stateRef.current;
-    if (!state || state.status !== 'playerTurn')
+  function stand(): void {
+    if (!rt.session.apply({ type: 'stand' }))
       return;
     playCardSfx(audio, 'place');
-    stand(state);
-    nextDealerHitTimeRef.current = performance.now() + DEALER_DELAY;
-    setPlaying(false);
-  }, [audio]);
+    afterMove();
+  }
 
-  // rAF render loop
-  useEffect(() => {
-    if (!layout || !canvasRef.current)
-      return;
-    const ctx2d = canvasRef.current.getContext('2d')!;
+  function newDeal(): void {
+    clearDealerTimer();
+    rt.session.newGame();
+    rt.board = createCardWorld(CARD_COUNT);
+    refresh();
+    invalidate();
+  }
 
-    let rafId = 0;
-    const loop = (): void => {
-      const state = stateRef.current;
-      if (!state) {
-        rafId = requestAnimationFrame(loop);
-        return;
-      }
+  useEffect(() => clearDealerTimer, []);
 
-      if (state.status === 'dealerTurn') {
-        if (nextDealerHitTimeRef.current === 0) {
-          nextDealerHitTimeRef.current = performance.now() + DEALER_DELAY;
-        }
-        else if (performance.now() >= nextDealerHitTimeRef.current) {
-          playCardSfx(audio, 'slide');
-          const keepGoing = dealerHit(state);
-          if (keepGoing) {
-            nextDealerHitTimeRef.current = performance.now() + DEALER_DELAY;
-          }
-        }
-      }
-
-      // Update UI after dealer logic — placed outside narrowed block
-      setPlaying(state.status === 'playerTurn');
-
-      syncLayout(worldRef.current, state);
-      renderFrame(ctx2d, worldRef.current, atlases, state);
-      rafId = requestAnimationFrame(loop);
-    };
-    rafId = requestAnimationFrame(loop);
-
-    return () => cancelAnimationFrame(rafId);
-  }, [layout, atlases, audio]);
-
-  // Initial deal once layout is known
-  useEffect(() => {
-    if (layout)
-      newDeal();
-  }, [layout]);
-
-  if (!layout)
-    return null;
+  const playing = rt.session.state.phase === 'player';
 
   return (
-    <GameShell
-      canvasRef={canvasRef}
-      canvasW={layout.canvasW}
-      canvasH={layout.canvasH}
-      onBack={onBack}
-      onNewDeal={newDeal}
-    >
-      <button
-        class={shellStyles.btnPrimary}
-        disabled={!playing}
-        onClick={handleHit}
-      >
+    <GameFrame areaRef={areaRef} canvasRef={canvasRef} onBack={onBack} onNewDeal={newDeal}>
+      <button class={frameStyles.btnPrimary} disabled={!playing} onClick={hit}>
         Hit
       </button>
-      <button
-        class={shellStyles.btnSecondary}
-        disabled={!playing}
-        onClick={handleStand}
-      >
+      <button class={frameStyles.btnSecondary} disabled={!playing} onClick={stand}>
         Stand
       </button>
-    </GameShell>
+    </GameFrame>
   );
 }

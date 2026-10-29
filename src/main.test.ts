@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { start } from './main.tsx';
 
 vi.mock('./kits/cards/atlas', () => ({ loadCardAtlases: vi.fn(async () => ({})) }));
-vi.mock('./shared/audio', () => ({ loadCardAudio: vi.fn(async () => ({})) }));
+vi.mock('./kits/cards/audio', () => ({ loadCardAudio: vi.fn(async () => ({})) }));
 
 let closeSpy: ReturnType<typeof vi.fn>;
 let created: number;

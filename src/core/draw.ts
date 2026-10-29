@@ -53,11 +53,12 @@ export function drawBanner(
   canvasH: number,
   bandH: number,
   text: string,
+  color = '#ffe14d',
 ): void {
   const cy = canvasH / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(0, cy - bandH / 2, canvasW, bandH);
-  ctx.fillStyle = '#ffe14d';
+  ctx.fillStyle = color;
   ctx.font = `700 ${Math.round(bandH * 0.5)}px system-ui`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

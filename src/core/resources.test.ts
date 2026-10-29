@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadResources, resumeOnFirstPress } from './resources';
 
 vi.mock('../kits/cards/atlas', () => ({ loadCardAtlases: vi.fn() }));
-vi.mock('../shared/audio', () => ({ loadCardAudio: vi.fn() }));
+vi.mock('../kits/cards/audio', () => ({ loadCardAudio: vi.fn() }));
 
 const { loadCardAtlases } = await import('../kits/cards/atlas');
-const { loadCardAudio } = await import('../shared/audio');
+const { loadCardAudio } = await import('../kits/cards/audio');
 
 interface FakeAudioContext {
   close: ReturnType<typeof vi.fn>;

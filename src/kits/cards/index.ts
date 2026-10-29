@@ -1,3 +1,4 @@
+export type { CardAudio } from './audio';
 export type { Color, Suit } from './cards';
 export type { Card, DeckSpec } from './deck';
 export type { DragView, Rect } from './drag';
@@ -5,6 +6,7 @@ export type { Point, TableLayout } from './layout';
 export type { CardPlacement } from './sprites';
 
 export { BACKS_ATLAS, CARDS_ATLAS, loadCardAtlases } from './atlas';
+export { loadCardAudio, playCardSfx } from './audio';
 export { CARD_BACK_FRAME, cardFrame, RANKS, suitColor, SUITS } from './cards';
 export {
   DRAG_FAN_RATIO,

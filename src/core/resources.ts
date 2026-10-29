@@ -5,12 +5,12 @@
 
 import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
-import type { CardAudio } from '../shared';
+import type { CardAudio } from '../kits/cards/audio';
 
 import { AssetLoader } from '@pierre/ecs/modules/asset-loader';
 
 import { loadCardAtlases } from '../kits/cards/atlas';
-import { loadCardAudio } from '../shared/audio';
+import { loadCardAudio } from '../kits/cards/audio';
 
 export interface GameResources {
   atlases: TextureAtlasRegistry;

@@ -18,8 +18,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { createSession, GameFrame, useCanvasGame } from '../../core';
 import frameStyles from '../../core/game-frame.module.css';
-import { createCardWorld, dragProbe, rectContains, syncCardSprites } from '../../kits/cards';
-import { playCardSfx } from '../../shared';
+import { createCardWorld, dragProbe, playCardSfx, rectContains, syncCardSprites } from '../../kits/cards';
 import { canDragRun, dealBlock, RUNS_TO_WIN, spiderRules } from './rules';
 import { cardPoint, drawTable, dropZones, pickCard, placements, spiderLayout, stockRect } from './view';
 
