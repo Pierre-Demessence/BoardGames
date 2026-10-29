@@ -1,0 +1,72 @@
+.bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  font: 13px system-ui;
+  color: #cde;
+  flex-shrink: 0;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+/* The canvas hook measures this area and sizes the canvas to fill it. */
+.area {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.btnPrimary,
+.btnSecondary {
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #3fbf8f;
+}
+
+.btnPrimary {
+  color: #fff;
+  background: #1f6b4f;
+}
+
+.btnSecondary {
+  color: #cde;
+  background: #2a5a4a;
+}
+
+.btnSecondary:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.score {
+  font: 700 14px system-ui;
+  color: #ffe14d;
+  min-width: 80px;
+  text-align: center;
+}
+
+.timer {
+  font: 13px system-ui;
+  color: #aac;
+  min-width: 60px;
+  text-align: center;
+}
+
+.hint {
+  font: 13px system-ui;
+  color: #aac;
+}

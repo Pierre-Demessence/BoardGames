@@ -1,7 +1,8 @@
-import type { EcsWorld, EntityId } from '@pierre/ecs';
+import type { EntityId } from '@pierre/ecs';
 
 import type { Card } from './deck';
 
+import { EcsWorld } from '@pierre/ecs';
 import { RenderableDef, RenderOrderDef } from '@pierre/ecs/modules/render-canvas2d';
 import { PositionDef } from '@pierre/ecs/modules/transform';
 
@@ -52,4 +53,17 @@ export function syncCardSprites(
     if (!placed.has(id))
       renderables.delete(entity);
   });
+}
+
+/**
+ * A world with the components `syncCardSprites` needs and one entity per card
+ * id (`entityOf[id]`). A game view creates it when a new game starts.
+ */
+export function createCardWorld(cardCount: number): { entityOf: EntityId[]; world: EcsWorld } {
+  const world = new EcsWorld();
+  world.registerComponent(PositionDef);
+  world.registerComponent(RenderableDef);
+  world.registerComponent(RenderOrderDef);
+  const entityOf = Array.from({ length: cardCount }, () => world.createEntity());
+  return { entityOf, world };
 }

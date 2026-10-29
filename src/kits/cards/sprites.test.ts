@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BACKS_ATLAS, CARDS_ATLAS } from './atlas';
 import { CARD_BACK_FRAME, cardFrame } from './cards';
-import { syncCardSprites } from './sprites';
+import { createCardWorld, syncCardSprites } from './sprites';
 
 const SIZE = { cardH: 110, cardW: 80 };
 
@@ -71,5 +71,18 @@ describe('syncCardSprites', () => {
       atlas: CARDS_ATLAS,
       frame: cardFrame('Spades', 2),
     });
+  });
+});
+
+describe('createCardWorld', () => {
+  it('creates one entity per card id with the sprite components registered', () => {
+    const { entityOf, world } = createCardWorld(3);
+    expect(entityOf).toHaveLength(3);
+    expect(new Set(entityOf).size).toBe(3);
+
+    world.getStore(PositionDef).set(entityOf[2]!, { x: 1, y: 2 });
+    expect(world.getStore(PositionDef).get(entityOf[2]!)).toEqual({ x: 1, y: 2 });
+    expect(() => world.getStore(RenderableDef)).not.toThrow();
+    expect(() => world.getStore(RenderOrderDef)).not.toThrow();
   });
 });

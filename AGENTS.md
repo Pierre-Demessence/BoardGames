@@ -24,26 +24,32 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 - `src/main.tsx` — `start()` mounts `AppLoader` and returns a dispose function that
   unmounts it and closes the `AudioContext`.
 - `src/core/` — what any game uses, re-exported by its `index.ts` barrel (types,
-  `GAMES` and `createSession`): `app.tsx` (`AppLoader` loads the resources once,
+  `GAMES`, `createSession`, `useCanvasGame`, `GameFrame` and the draw helpers): `app.tsx` (`AppLoader` loads the resources once,
   `App` switches between the hub and the selected game and resumes the
   `AudioContext` on the first pointer press), `registry.ts` (`GAMES`: id, name,
   description and a lazy `load()` per game), `resources.ts` (`GameResources`:
   atlases, plus audio that is `null` when it fails to load), `rules.ts` (the
   `GameRules` contract) and `session.ts` (`createSession`: current state, undo
-  history, `newGame`, injectable clock and seed source).
+  history, `newGame`, injectable clock and seed source), `use-canvas-game.ts` (the
+  canvas hook: sizing by `ResizeObserver` at `devicePixelRatio`, pointer events in
+  CSS pixels, frames only on `invalidate()` or while `animating()`),
+  `game-frame.tsx` (control bar with Back, New deal and an optional Undo, plus the
+  area the hook measures) and `draw.ts` (`roundRect`, `drawSlot`, `drawBanner`).
 - `src/kits/cards/` — what card games use, re-exported by its `index.ts` barrel: the
   plain-JSON card model and `makeDeck`, atlas and frame names, table layout
-  (`computeTableLayout`, `fanColumn`, `rowPositions`), layout constants and
-  `syncCardSprites`. A kit imports neither another kit nor a game.
+  (`computeTableLayout`, `fanColumn`, `rowPositions`), layout constants,
+  `createCardWorld` and `syncCardSprites`. A kit imports neither another kit nor a game.
 - `src/hub.tsx` — the game selector; it lists `GAMES`.
 - `src/shared/` — what the games still use until they move to `core` and the kits,
   re-exported by the `index.ts` barrel (which also forwards the card-kit names the
   games import): the entity-based deck, SFX loading, viewport layout
   (`computeLayout`), `BAR_HEIGHT`, `SFX_VOLUME`, and `GameShell` + `makeWorld`
   (`shell.tsx`).
-- `src/games/<name>/` — one folder per game: `game.ts` (rules and state),
-  `render.ts` (`syncLayout` + `renderFrame`), `index.tsx` (the Preact component:
-  input, rAF loop, extra controls).
+- `src/games/<name>/` — one folder per game. A migrated game (Solitaire) has
+  `rules.ts` (the `GameRules` and per-game helpers), `view.ts` (geometry, hit
+  testing, sprites, drawing) and `index.tsx` (the thin Preact component: session,
+  canvas hook, `DragDrop`, extra controls). Games not yet migrated keep `game.ts`,
+  `render.ts` (`syncLayout` + `renderFrame`) and an `index.tsx` with its own rAF loop.
 - `assets/` — Kenney asset packs (CC0), imported with `?url`.
 - `docs/` — [`backlog.md`](docs/backlog.md) (all open work),
   [`decisions.md`](docs/decisions.md) (why the design is the way it is) and `plans/`
@@ -61,14 +67,17 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   illegal move; time and randomness enter only through `now` and `seed`, never
   `Date.now()` or `Math.random()`. Card ids are indexes in the deal; the view maps
   them to entities.
-- **Cards render through ECS.** Each frame, `syncLayout()` writes `PositionDef`,
-  `RenderableDef` and `RenderOrderDef` for every card entity, then
-  `renderFrame()` draws with the engine's `Canvas2DRenderer`. Solitaire's
-  victory animation skips `syncLayout()` and positions the cards itself.
-- **Game components own their loop.** `index.tsx` keeps mutable game state in
-  `useRef`, runs the rAF loop and pointer listeners in `useEffect`, and cleans up
-  in the effect's return (`cancelAnimationFrame`, `AbortController.abort()`).
-  `GameShell` is presentational: control bar, Back and New deal buttons, canvas.
+- **Cards render through ECS.** A migrated game's view creates one entity per card
+  id with `createCardWorld()` on each new game; each frame `syncCardSprites()`
+  writes `PositionDef`, `RenderableDef` and `RenderOrderDef` from the state, then
+  the engine's `Canvas2DRenderer` draws. Solitaire's victory animation places the
+  cards itself. Not yet migrated games do the same through `syncLayout()` and
+  `renderFrame()`.
+- **Canvas games use `useCanvasGame`.** The hook owns sizing, the pointer
+  listeners and the frame loop, and cleans up on unmount; a game draws in CSS
+  pixels and calls `invalidate()` after it changes something. Mutable runtime
+  (session, drag, timers) sits in a `useRef`. Games not yet migrated keep their own
+  rAF loop in `useEffect` and render through `GameShell`.
 - **Styles live in CSS modules** (`*.module.css`). Inline `style` is only for
   computed values such as the canvas size.
 - **No cross-game or cross-kit imports.** Anything two games need moves to
@@ -88,9 +97,9 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 
 ## Adding a game
 
-1. Create `src/games/<name>/` with `game.ts`, `render.ts` and `index.tsx`.
+1. Create `src/games/<name>/` with `rules.ts`, `view.ts` and `index.tsx`.
 2. Export a component taking `GameProps` (`{ resources: GameResources, onBack: () => void }`)
-   that renders `GameShell`. `resources.audio` can be `null`: `playCardSfx()` accepts it.
+   that renders `GameFrame` and uses `createSession` and `useCanvasGame`. `resources.audio` can be `null`: `playCardSfx()` accepts it.
 3. Add a `GameDef` to `GAMES` in `src/core/registry.ts`, with a `load()` that
    dynamically imports the game's `index.tsx` and returns its component.
 

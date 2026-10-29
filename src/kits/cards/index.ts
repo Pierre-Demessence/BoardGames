@@ -18,4 +18,4 @@ export {
 } from './constants';
 export { makeDeck } from './deck';
 export { computeTableLayout, fanColumn, rowPositions } from './layout';
-export { syncCardSprites } from './sprites';
+export { createCardWorld, syncCardSprites } from './sprites';
