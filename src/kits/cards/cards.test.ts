@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CARD_BACK_FRAME, CARD_H, CARD_W, cardFrame, RANKS, suitColor, SUITS } from './cards';
+import { CARD_BACK_FRAME, cardFrame, RANKS, suitColor, SUITS } from './cards';
 
 describe('suitColor', () => {
   it('returns red for Diamonds', () => {
@@ -53,11 +53,6 @@ describe('constants', () => {
     expect(RANKS).toHaveLength(13);
     expect(RANKS[0]).toBe(1);
     expect(RANKS[12]).toBe(13);
-  });
-
-  it('defines card dimensions', () => {
-    expect(CARD_W).toBe(80);
-    expect(CARD_H).toBe(110);
   });
 
   it('defines the card back frame name', () => {

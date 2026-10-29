@@ -1,0 +1,11 @@
+# Decisions
+
+Why the design is the way it is, where the code alone would not say.
+
+## Game state is plain JSON outside the ECS world
+
+Each game's state is plain JSON (cards, piles, score), and rules are functions from state and move to the next state. The engine's `pile` module is not used: it keeps piles as entities and components in the ECS world, which would make undo snapshots, saves and multiplayer sync depend on world serialization instead of a `JSON.stringify` of the state. The ECS world only draws: the view derives sprites from the state each frame.
+
+## Card ids are separate from entity ids
+
+A card's `id` is its index in the deal, a plain number. The view creates one entity per card id when a game starts and keeps the mapping (`entityOf[id]`). The rules never see entities, so the same state can be restored after an undo or a reload without matching ids to a world that no longer holds them, and two games dealt from the same seed have equal states.

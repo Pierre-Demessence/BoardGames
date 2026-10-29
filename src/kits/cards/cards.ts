@@ -1,7 +1,7 @@
 /**
  * Shared card model — suits, ranks, colors, and mapping to Kenney atlas frame names.
  *
- * All card games in this project use the same Kenney `playingCards` atlas.
+ * Every card game in this project uses the same Kenney `playingCards` atlas.
  * Frame names follow the pattern `card{Suit}{RankLabel}.png`, e.g.
  * `cardHeartsK.png`, `cardClubs10.png`, `cardSpadesA.png`.
  */
@@ -40,7 +40,3 @@ export function cardFrame(suit: Suit, rank: number): string {
 
 /** Frame name (in the separate backs atlas) used for face-down cards. */
 export const CARD_BACK_FRAME = 'cardBack_blue1.png';
-
-/** Card dimensions shared by all card games. */
-export const CARD_W = 80;
-export const CARD_H = 110;

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { start } from './main.tsx';
 
-vi.mock('./shared/atlas', () => ({ loadCardAtlases: vi.fn(async () => ({})) }));
+vi.mock('./kits/cards/atlas', () => ({ loadCardAtlases: vi.fn(async () => ({})) }));
 vi.mock('./shared/audio', () => ({ loadCardAudio: vi.fn(async () => ({})) }));
 
 let closeSpy: ReturnType<typeof vi.fn>;
@@ -39,7 +39,7 @@ describe('start', () => {
   });
 
   it('closes the AudioContext when disposed while still loading', async () => {
-    const { loadCardAtlases } = await import('./shared/atlas');
+    const { loadCardAtlases } = await import('./kits/cards/atlas');
     let release!: () => void;
     vi.mocked(loadCardAtlases).mockImplementationOnce(
       () => new Promise((resolve) => {

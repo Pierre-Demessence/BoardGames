@@ -9,7 +9,7 @@ import type { CardAudio } from '../shared';
 
 import { AssetLoader } from '@pierre/ecs/modules/asset-loader';
 
-import { loadCardAtlases } from '../shared/atlas';
+import { loadCardAtlases } from '../kits/cards/atlas';
 import { loadCardAudio } from '../shared/audio';
 
 export interface GameResources {

@@ -1,10 +1,10 @@
 import type { EntityId } from '@pierre/ecs';
 
-import type { Suit } from './cards';
+import type { Suit } from '../kits/cards';
 
 import { shuffle } from '@pierre/ecs/modules/rng';
 
-import { RANKS, SUITS } from './cards';
+import { RANKS, SUITS } from '../kits/cards';
 
 export interface Card {
   id: EntityId;

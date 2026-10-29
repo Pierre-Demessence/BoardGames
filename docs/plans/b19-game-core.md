@@ -1,6 +1,6 @@
 # B19 Shared game core and card kit
 
-Status: B19.1 committed; next open item is B19.2 (rules contract and card kit).
+Status: B19.2 committed; next open item is B19.3 (canvas hook and Solitaire).
 
 ## Goal
 
@@ -72,15 +72,18 @@ Delivers B19 and, on the way, B2, B3, B5, B9, B10–B18.
   Decided during the run: `GameResources.audio` and `audioCtx` are `null` when the context or any clip fails (the context is then closed), so games run silent; atlas failures still show "Failed to load". Alternative: keep the context and only null `audio`. Change in `loadResources` in `src/core/resources.ts`.
   Decided during the run: the first-press resume listens to `pointerdown` and `pointerup` (capture, on `window`) and stops once the context is running, because a mouse `pointerdown` can precede the browser's user activation. Alternative: `pointerdown` only. Change in `resumeOnFirstPress`.
   Decided during the run: the loading/error styles moved from `src/shared/shell.module.css` to `src/core/app.module.css`, and `Hub` reads `GAMES` itself (it no longer takes `resources`, which it never used).
-- [ ] B19.2 Rules contract and card kit. Add `src/core/rules.ts`, `src/core/session.ts` and `src/kits/cards/` as designed, with unit tests (session undo and history; `makeDeck` determinism; `fanColumn` for criterion 5; `rowPositions`). The games still use `src/shared/`. Update `AGENTS.md` (layout, the "game logic is pure" convention restated as the rules contract). Create `docs/decisions.md` with two entries: plain-JSON state outside ECS instead of the engine `pile` module, and card ids separate from entity ids.
+- [x] B19.2 Rules contract and card kit. Add `src/core/rules.ts`, `src/core/session.ts` and `src/kits/cards/` as designed, with unit tests (session undo and history; `makeDeck` determinism; `fanColumn` for criterion 5; `rowPositions`). The games still use `src/shared/`. Update `AGENTS.md` (layout, the "game logic is pure" convention restated as the rules contract). Create `docs/decisions.md` with two entries: plain-JSON state outside ECS instead of the engine `pile` module, and card ids separate from entity ids.
   Visible after: nothing (groundwork, no game uses it yet).
   Needs you: nothing.
+  Decided during the run: the card atlas, frame names, suits/ranks and the card layout constants moved now from `src/shared/` into `src/kits/cards/` (not copied), and `src/shared/index.ts` forwards the card-kit names the games still import, until B19.5 deletes it; alternative: leave them in `shared` and duplicate them in the kit. The unused `CARD_W` and `CARD_H` were deleted with the move. Change by editing the re-export block in `src/shared/index.ts`.
+  Decided during the run: `createSession(rules, { options, undoable, clock?, newSeed?, seed? })` takes the clock and seed source as injectable functions (defaults `Date.now` and a random 32-bit integer), so `session.apply(move)` and `newGame(seed?)` need no `now`; alternative: pass `now` on each call. Change in `src/core/session.ts`.
+  Decided during the run: `makeDeck({ decks, suits }, rand)` reads `suits` as the number of distinct suits (1, 2 or 4) spread over each 52-card deck (order Spades, Hearts, Clubs, Diamonds), and assigns card ids after the shuffle; `syncCardSprites` takes a fourth argument `{ cardW, cardH }` for the sprite size; `computeTableLayout` also returns `tableauTop` and `tableauBottom` for `fanColumn`. Alternative: other readings of `suits`, or sizing in each placement. Change in `src/kits/cards/`.
 - [ ] B19.3 Canvas hook and Solitaire. Add `src/core/use-canvas-game.ts` (criterion 14 test) and `src/core/draw.ts`. Rewrite Solitaire as `rules.ts` (with tests for criteria 1, 2 and 9, and the existing move rules), `view.ts` and a thin `index.tsx` with `DragDrop`, double-click, auto-finish, the victory animation and Undo. Delete `game.ts` and `render.ts`. Delete B10, B11 and B12 from the backlog, and Solitaire from B3's line.
   Visible after: runs can no longer go onto a foundation; the score loses 2 points per 10 s and freezes at the win; the table follows window resizes and is sharp; long columns squeeze to fit; Undo button.
   Needs you: play one Solitaire game to the end, with a resize and an Undo (at the end).
 - [ ] B19.4 Spider. Same split, with tests for criteria 7, 8 and 9 and an Undo button. Delete B15 (now covered for both tableau games), B17 and B18 from the backlog, and Spider from B3's line.
   Visible after: no "↻" on the empty stock; a refused deal explains itself; deep columns fit; Undo button.
   Needs you: play Spider until at least one run completes, with an Undo and a refused deal (at the end).
-- [ ] B19.5 Blackjack and cleanup. Same split, with tests for criteria 3 and 9 (no Undo). Delete `src/shared/`, along with the unused `CARD_W` and `CARD_H`. Final `AGENTS.md` pass. Delete B3, B13, B16 and B19 from the backlog. Re-check every criterion as a whole.
+- [ ] B19.5 Blackjack and cleanup. Same split, with tests for criteria 3 and 9 (no Undo). Delete `src/shared/`. Final `AGENTS.md` pass. Delete B3, B13, B16 and B19 from the backlog. Re-check every criterion as a whole.
   Visible after: a dealer blackjack ends the round at once.
   Needs you: play a few Blackjack rounds, including a dealer blackjack if one comes up (at the end).
