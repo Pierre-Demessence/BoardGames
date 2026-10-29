@@ -7,7 +7,7 @@
 
 import type { EntityId } from '@pierre/ecs';
 
-import type { GameResources } from '../../shared';
+import type { GameResources } from '../../core';
 import type { CardLayout } from '../../shared/layout';
 import type { GameState } from './game';
 

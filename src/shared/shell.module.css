@@ -66,17 +66,3 @@
   font: 13px system-ui;
   color: #aac;
 }
-
-.loading {
-  text-align: center;
-  padding: 60px;
-  font: 18px system-ui;
-  color: #cde;
-}
-
-.error {
-  text-align: center;
-  padding: 60px;
-  font: 18px system-ui;
-  color: #f88;
-}

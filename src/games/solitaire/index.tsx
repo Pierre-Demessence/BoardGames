@@ -8,7 +8,7 @@
 
 import type { EntityId } from '@pierre/ecs';
 
-import type { GameResources } from '../../shared';
+import type { GameResources } from '../../core';
 import type { CardLayout } from '../../shared/layout';
 import type { Card, GameState, PileRef } from './game';
 
@@ -153,7 +153,7 @@ export interface SolitaireGameProps {
 }
 
 export function SolitaireGame({ onBack, resources }: SolitaireGameProps) {
-  const { atlases, audio, audioCtx } = resources;
+  const { atlases, audio } = resources;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Mutable game state (never triggers re-render)
@@ -388,7 +388,6 @@ export function SolitaireGame({ onBack, resources }: SolitaireGameProps) {
     const state = stateRef.current;
     if (!state || state.won || autoWinQueueRef.current.length > 0)
       return;
-    void audioCtx.resume();
     const point = toWorld(event);
 
     if (inSlot(state, point, slotPosition(state.layout, { index: 0, kind: 'stock' }))) {
@@ -417,7 +416,7 @@ export function SolitaireGame({ onBack, resources }: SolitaireGameProps) {
       pointerY: point.y,
     };
     canvasRef.current!.setPointerCapture(event.pointerId);
-  }, [audioCtx, toWorld, dealFromStock, playSfx]);
+  }, [toWorld, dealFromStock, playSfx]);
 
   const onPointerMove = useCallback((event: PointerEvent) => {
     const drag = dragRef.current;

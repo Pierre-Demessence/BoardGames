@@ -8,7 +8,7 @@
 
 import type { EntityId } from '@pierre/ecs';
 
-import type { GameResources } from '../../shared';
+import type { GameResources } from '../../core';
 import type { CardLayout } from '../../shared/layout';
 import type { Card, GameState } from './game';
 import type { DragOverride } from './render';
@@ -108,7 +108,7 @@ export interface SpiderGameProps {
 }
 
 export function SpiderGame({ onBack, resources }: SpiderGameProps) {
-  const { atlases, audio, audioCtx } = resources;
+  const { atlases, audio } = resources;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Mutable game state
@@ -197,7 +197,6 @@ export function SpiderGame({ onBack, resources }: SpiderGameProps) {
     const state = stateRef.current;
     if (!state || state.won)
       return;
-    void audioCtx.resume();
     const point = toWorld(event);
 
     // Stock click
@@ -235,7 +234,7 @@ export function SpiderGame({ onBack, resources }: SpiderGameProps) {
       pointerY: point.y,
     };
     canvasRef.current!.setPointerCapture(event.pointerId);
-  }, [audioCtx, toWorld, playSfx, finishMove]);
+  }, [toWorld, playSfx, finishMove]);
 
   const onPointerMove = useCallback((event: PointerEvent) => {
     const drag = dragRef.current;

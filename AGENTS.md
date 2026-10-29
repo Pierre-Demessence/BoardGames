@@ -21,12 +21,18 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 ## Layout
 
 - `index.html` — mounts `#root` and calls `start()` from `src/main.tsx`.
-- `src/main.tsx` — `AppLoader` loads the card atlases and audio once, then `App`
-  switches between the hub and the selected game.
-- `src/hub.tsx` — the game selector; its `GAMES` array lists what the menu shows.
+- `src/main.tsx` — `start()` mounts `AppLoader` and returns a dispose function that
+  unmounts it and closes the `AudioContext`.
+- `src/core/` — what any game uses, re-exported by its `index.ts` barrel (types and
+  `GAMES` only): `app.tsx` (`AppLoader` loads the resources once, `App` switches
+  between the hub and the selected game and resumes the `AudioContext` on the first
+  pointer press), `registry.ts` (`GAMES`: id, name, description and a lazy `load()`
+  per game) and `resources.ts` (`GameResources`: atlases, plus audio that is `null`
+  when it fails to load).
+- `src/hub.tsx` — the game selector; it lists `GAMES`.
 - `src/shared/` — code every game uses, re-exported by the `index.ts` barrel:
   card and deck model, atlas and SFX loading, viewport layout (`computeLayout`),
-  shared constants, `GameResources`, and `GameShell` + `makeWorld` (`shell.tsx`).
+  shared constants, and `GameShell` + `makeWorld` (`shell.tsx`).
 - `src/games/<name>/` — one folder per game: `game.ts` (rules and state),
   `render.ts` (`syncLayout` + `renderFrame`), `index.tsx` (the Preact component:
   input, rAF loop, extra controls).
@@ -65,10 +71,10 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 ## Adding a game
 
 1. Create `src/games/<name>/` with `game.ts`, `render.ts` and `index.tsx`.
-2. Export a component taking `{ resources: GameResources, onBack: () => void }`
-   that renders `GameShell`.
-3. Add a `GameDef` to `GAMES` in `src/hub.tsx` and a `case` for its id in `App`
-   in `src/main.tsx`.
+2. Export a component taking `GameProps` (`{ resources: GameResources, onBack: () => void }`)
+   that renders `GameShell`. `resources.audio` can be `null`: `playCardSfx()` accepts it.
+3. Add a `GameDef` to `GAMES` in `src/core/registry.ts`, with a `load()` that
+   dynamically imports the game's `index.tsx` and returns its component.
 
 ## Engine dependency
 
