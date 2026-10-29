@@ -1,12 +1,13 @@
 /**
- * Solo Yahtzee: five dice, up to three rolls a turn, 13 boxes on the scorecard.
- * The state is plain JSON; the dice are rolled from `rngState`, so the same state
- * and move always give the same result.
+ * Yahtzee for one to four seats: five dice shared by the seats, up to three rolls a
+ * turn, 13 boxes on each seat's scorecard. The state is plain JSON; the dice are rolled
+ * from `rngState`, so the same state and move always give the same result.
  */
 
-import type { GameRules, GameStatus } from '../../core';
+import type { GameRules, GameStatus, SeatKind, Seats } from '../../core';
 import type { Die } from '../../kits/dice';
 
+import { makeSeats, passTurn, seatToPlay } from '../../core';
 import { makeDice, rollDice, toggleHold } from '../../kits/dice';
 
 export const UPPER_BOXES = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'] as const;
@@ -29,6 +30,7 @@ export const MAX_ROLLS = 3;
 export const UPPER_BONUS_THRESHOLD = 63;
 export const UPPER_BONUS = 35;
 export const YAHTZEE_BONUS = 100;
+export const MAX_SEATS = 4;
 
 const FULL_HOUSE_SCORE = 25;
 const SMALL_STRAIGHT_SCORE = 30;
@@ -36,15 +38,25 @@ const LARGE_STRAIGHT_SCORE = 40;
 const YAHTZEE_SCORE = 50;
 const ALL_BOXES: readonly Box[] = [...UPPER_BOXES, ...LOWER_BOXES];
 
-export interface YahtzeeState {
+export interface ScoreSheet {
   boxes: Record<Box, number | null>;
+  /** Extra Yahtzees scored while the Yahtzee box held 50. */
+  yahtzeeBonuses: number;
+}
+
+export interface YahtzeeOptions {
+  seats: SeatKind[];
+}
+
+export interface YahtzeeState {
   dice: Die[];
   /** State of the dice's random generator. */
   rngState: number;
   /** Rolls taken this turn; 0 before the first roll. */
   rollsUsed: number;
-  /** Extra Yahtzees scored while the Yahtzee box held 50. */
-  yahtzeeBonuses: number;
+  seats: Seats;
+  /** One score sheet per seat, indexed by seat. */
+  sheets: ScoreSheet[];
 }
 
 export type YahtzeeMove
@@ -91,12 +103,17 @@ function longestRun(dice: readonly Die[]): number {
   return best;
 }
 
-/** An extra Yahtzee: the dice are five of a kind and the Yahtzee box is already filled (with 50 or 0). */
-function isJoker(state: YahtzeeState): boolean {
-  return state.rollsUsed > 0 && state.boxes.yahtzee !== null && isYahtzee(state.dice);
+/** The score sheet of the seat to play. */
+export function sheetToPlay(state: YahtzeeState): ScoreSheet {
+  return state.sheets[seatToPlay(state.seats)]!;
 }
 
-/** What `box` would score with the current dice (the joker rule gives the lower boxes their full value). */
+/** An extra Yahtzee: the dice are five of a kind and the Yahtzee box is already filled (with 50 or 0). */
+function isJoker(state: YahtzeeState): boolean {
+  return state.rollsUsed > 0 && sheetToPlay(state).boxes.yahtzee !== null && isYahtzee(state.dice);
+}
+
+/** What `box` would score for the seat to play with the current dice (the joker rule gives the lower boxes their full value). */
 export function scoreFor(state: YahtzeeState, box: Box): number {
   const { dice } = state;
   if (isUpper(box))
@@ -123,33 +140,44 @@ export function scoreFor(state: YahtzeeState, box: Box): number {
 
 /** Whether `box` may be scored now: the turn has a roll, the box is open and the joker rule allows it. */
 export function canScore(state: YahtzeeState, box: Box): boolean {
-  if (state.rollsUsed === 0 || state.boxes[box] !== null)
+  const { boxes } = sheetToPlay(state);
+  if (state.rollsUsed === 0 || boxes[box] !== null)
     return false;
   if (!isJoker(state))
     return true;
   const matching = UPPER_BOXES.find(name => FACE_OF[name] === state.dice[0]!.value)!;
-  if (state.boxes[matching] === null)
+  if (boxes[matching] === null)
     return box === matching;
-  if (LOWER_BOXES.some(name => state.boxes[name] === null))
+  if (LOWER_BOXES.some(name => boxes[name] === null))
     return !isUpper(box);
   return isUpper(box);
 }
 
-export function totals(state: YahtzeeState): Totals {
+export function totals(sheet: ScoreSheet): Totals {
   const total = (names: readonly Box[]): number =>
-    names.reduce((acc, name) => acc + (state.boxes[name] ?? 0), 0);
+    names.reduce((acc, name) => acc + (sheet.boxes[name] ?? 0), 0);
   const upper = total(UPPER_BOXES);
   const lower = total(LOWER_BOXES);
   const upperBonus = upper >= UPPER_BONUS_THRESHOLD ? UPPER_BONUS : 0;
-  const yahtzeeBonus = state.yahtzeeBonuses * YAHTZEE_BONUS;
+  const yahtzeeBonus = sheet.yahtzeeBonuses * YAHTZEE_BONUS;
   return { grand: upper + upperBonus + lower + yahtzeeBonus, lower, upper, upperBonus, yahtzeeBonus };
 }
 
+/** The game ends once every seat has filled its 13 boxes: 13 full rounds of turns. */
 function isOver(state: YahtzeeState): boolean {
-  return ALL_BOXES.every(box => state.boxes[box] !== null);
+  return state.seats.turn.rounds >= ALL_BOXES.length;
 }
 
-export const yahtzeeRules: GameRules<YahtzeeState, YahtzeeMove, void> = {
+/** The seats with the highest grand total: one winner, or several on a tie. */
+export function leaders(state: YahtzeeState): number[] {
+  const grands = state.sheets.map(sheet => totals(sheet).grand);
+  const best = Math.max(...grands);
+  return grands.flatMap((grand, seat) => (grand === best ? [seat] : []));
+}
+
+export const yahtzeeRules: GameRules<YahtzeeState, YahtzeeMove, YahtzeeOptions> = {
+  seats: state => state.seats,
+
   apply(state, move) {
     if (isOver(state))
       return null;
@@ -158,18 +186,24 @@ export const yahtzeeRules: GameRules<YahtzeeState, YahtzeeMove, void> = {
         if (state.rollsUsed >= MAX_ROLLS)
           return null;
         const { dice, rngState } = rollDice(state.dice, state.rngState);
-        return { ...state, boxes: { ...state.boxes }, dice, rngState, rollsUsed: state.rollsUsed + 1 };
+        return { ...state, dice, rngState, rollsUsed: state.rollsUsed + 1 };
       }
       case 'score': {
         if (!canScore(state, move.box))
           return null;
-        const bonus = isJoker(state) && state.boxes.yahtzee === YAHTZEE_SCORE;
+        const seat = seatToPlay(state.seats);
+        const sheet = sheetToPlay(state);
+        const bonus = isJoker(state) && sheet.boxes.yahtzee === YAHTZEE_SCORE;
+        const scored: ScoreSheet = {
+          boxes: { ...sheet.boxes, [move.box]: scoreFor(state, move.box) },
+          yahtzeeBonuses: sheet.yahtzeeBonuses + (bonus ? 1 : 0),
+        };
         return {
           ...state,
-          boxes: { ...state.boxes, [move.box]: scoreFor(state, move.box) },
           dice: state.dice.map(die => ({ ...die, held: false })),
           rollsUsed: 0,
-          yahtzeeBonuses: state.yahtzeeBonuses + (bonus ? 1 : 0),
+          seats: passTurn(state.seats),
+          sheets: state.sheets.map((other, index) => (index === seat ? scored : other)),
         };
       }
       case 'toggleHold': {
@@ -177,18 +211,23 @@ export const yahtzeeRules: GameRules<YahtzeeState, YahtzeeMove, void> = {
           return null;
         if (!Number.isInteger(move.index) || move.index < 0 || move.index >= state.dice.length)
           return null;
-        return { ...state, boxes: { ...state.boxes }, dice: toggleHold(state.dice, move.index) };
+        return { ...state, dice: toggleHold(state.dice, move.index) };
       }
     }
   },
 
-  setup(seed) {
+  setup(seed, options) {
+    if (options.seats.length < 1 || options.seats.length > MAX_SEATS)
+      throw new Error(`Yahtzee takes 1 to ${MAX_SEATS} seats, not ${options.seats.length}.`);
     return {
-      boxes: Object.fromEntries(ALL_BOXES.map(box => [box, null])) as Record<Box, number | null>,
       dice: makeDice(DICE_COUNT),
       rngState: seed >>> 0,
       rollsUsed: 0,
-      yahtzeeBonuses: 0,
+      seats: makeSeats(options.seats),
+      sheets: options.seats.map(() => ({
+        boxes: Object.fromEntries(ALL_BOXES.map(box => [box, null])) as Record<Box, number | null>,
+        yahtzeeBonuses: 0,
+      })),
     };
   },
 

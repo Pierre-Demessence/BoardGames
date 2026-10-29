@@ -13,6 +13,7 @@
 
 /* Holds the side panel and the canvas area side by side. */
 .body {
+  position: relative;
   display: flex;
   flex: 1 1 0;
   min-height: 0;
@@ -22,6 +23,17 @@
   flex: 0 0 260px;
   padding: 0 8px 8px;
   overflow-y: auto;
+}
+
+/* Covers the side panel and the canvas area; the game must also stop its bar while it is shown. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
 }
 
 /* The canvas hook measures this area and sizes the canvas to fill it. */

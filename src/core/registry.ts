@@ -41,7 +41,7 @@ export const GAMES: GameDef[] = [
   {
     id: 'yahtzee',
     name: 'Yahtzee',
-    description: 'Five dice, 13 turns — fill the scorecard',
+    description: 'Five dice, 13 turns, 1 to 4 players, humans or computer',
     load: () => import('../games/yahtzee/index.tsx').then(m => m.YahtzeeGame),
   },
 ];

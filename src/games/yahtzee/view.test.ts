@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { yahtzeeRules } from './rules';
-import { dieAt, placements, yahtzeeLayout } from './view';
+import { dieAt, placements, resultText, yahtzeeLayout } from './view';
 
 /** The canvas next to the scorecard in a 1280×600 viewport. */
 const SIZE = { height: 556, width: 940 };
 
 function rolled(held: number[] = []) {
-  const base = yahtzeeRules.setup(3, undefined, 0);
+  const base = yahtzeeRules.setup(3, { seats: ['human'] }, 0);
   return {
     ...base,
     dice: base.dice.map((die, i) => ({ ...die, held: held.includes(i), value: 3 as const })),
@@ -36,7 +36,7 @@ describe('yahtzeeLayout', () => {
 
 describe('placements', () => {
   it('places nothing before the first roll', () => {
-    expect(placements(yahtzeeRules.setup(1, undefined, 0), yahtzeeLayout(SIZE))).toEqual([]);
+    expect(placements(yahtzeeRules.setup(1, { seats: ['human'] }, 0), yahtzeeLayout(SIZE))).toEqual([]);
   });
 
   it('raises held dice above the free ones', () => {
@@ -74,5 +74,27 @@ describe('dieAt', () => {
     expect(dieAt(layout, { x: layout.xs[0]!, y: layout.centerY + layout.dieSize })).toBeNull();
     expect(dieAt(layout, { x: layout.xs[0]!, y: 0 })).toBeNull();
     expect(dieAt(layout, { x: 0, y: layout.centerY })).toBeNull();
+  });
+});
+
+describe('resultText', () => {
+  const sheetWith = (state: ReturnType<typeof rolled>, chance: number) =>
+    ({ ...state.sheets[0]!, boxes: { ...state.sheets[0]!.boxes, chance } });
+
+  it('gives the final score of a solo game', () => {
+    const state = rolled();
+    expect(resultText({ ...state, sheets: [sheetWith(state, 22)] })).toBe('Final score: 22');
+  });
+
+  it('names the winner of a game with several seats', () => {
+    const state = yahtzeeRules.setup(1, { seats: ['human', 'computer'] }, 0);
+    const sheets = [sheetWith(rolled(), 10), sheetWith(rolled(), 30)];
+    expect(resultText({ ...state, sheets })).toBe('Computer 2 wins with 30');
+  });
+
+  it('lists every leader on a tie', () => {
+    const state = yahtzeeRules.setup(1, { seats: ['human', 'computer', 'human'] }, 0);
+    const sheets = [sheetWith(rolled(), 20), sheetWith(rolled(), 5), sheetWith(rolled(), 20)];
+    expect(resultText({ ...state, sheets })).toBe('Tie: Player 1, Player 3 with 20');
   });
 });

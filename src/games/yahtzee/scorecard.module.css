@@ -23,6 +23,35 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Several seats: narrower cells, and a header row naming the seats. */
+.multi td {
+  width: 56px;
+  padding: 0 4px;
+}
+
+.multi thead th {
+  height: auto;
+  padding: 4px;
+  font-size: 12px;
+  text-align: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.multi thead td {
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* The seat to play: bold and an arrow in the text; the color only adds to it. */
+.multi thead .current {
+  font-weight: 700;
+  color: #ffe14d;
+}
+
+.multi .open {
+  min-width: 44px;
+  padding: 2px 4px;
+}
+
 .sum th,
 .sum td {
   color: #aac;

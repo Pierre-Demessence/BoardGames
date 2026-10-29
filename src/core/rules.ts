@@ -4,6 +4,8 @@
  * states, and later saved or synced.
  */
 
+import type { Seats } from './seats';
+
 export type GameStatus = 'draw' | 'lost' | 'playing' | 'won';
 
 /**
@@ -21,6 +23,8 @@ export interface GameRules<S, M, O = void> {
    * `state`: it clones, then changes the copy.
    */
   apply: (state: S, move: M, now: number) => S | null;
+  /** The seats of a multi-seat game; absent for a one-player game. */
+  seats?: (state: S) => Seats;
   /** Deals a new game; the same seed and options give the same state. */
   setup: (seed: number, options: O, now: number) => S;
   status: (state: S) => GameStatus;

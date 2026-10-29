@@ -1,0 +1,78 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 320px;
+  padding: 16px 20px;
+  font: 14px system-ui;
+  color: #cde;
+  background: #12382d;
+  border: 1px solid #3fbf8f;
+  border-radius: 10px;
+}
+
+.title {
+  margin: 0;
+  font: 700 16px system-ui;
+  color: #ffe14d;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.seatLabel {
+  flex: 1 1 auto;
+  font-weight: 600;
+}
+
+.kind,
+.action {
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #cde;
+  background: transparent;
+  border: 1px solid #3fbf8f;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* The chosen kind is filled and carries a check mark, so it never relies on color alone. */
+.kind[aria-pressed='true'] {
+  color: #fff;
+  background: #1f6b4f;
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.start {
+  padding: 4px 16px;
+  font: inherit;
+  font-weight: 700;
+  color: #fff;
+  background: #1f6b4f;
+  border: 1px solid #3fbf8f;
+  border-radius: 6px;
+  cursor: pointer;
+}

@@ -6,7 +6,7 @@ global agent instructions.
 ## What this is
 
 A browser collection of card and dice games: Klondike Solitaire, 1-suit Spider,
-Blackjack and solo Yahtzee. Preact renders the menu, each game's control bar and
+Blackjack and Yahtzee for 1 to 4 players, humans or computer. Preact renders the menu, each game's control bar and
 Yahtzee's scorecard; the cards and dice are drawn on a canvas through the user's
 `@pierre/ecs` engine. Private and pre-v1.
 
@@ -31,13 +31,19 @@ Yahtzee's scorecard; the cards and dice are drawn on a canvas through the user's
   description and a lazy `load()` per game), `resources.ts` (`GameResources`:
   the card and dice atlases in one registry, plus card and dice audio that are `null`
   when a clip fails to load), `rules.ts` (the
-  `GameRules` contract) and `session.ts` (`createSession`: current state, `canApply`, undo
-  history, `isIrreversible` moves that clear it, `newGame`, injectable clock and seed
-  source), `use-canvas-game.ts` (the
+  `GameRules` contract; an optional `seats` marks a multi-seat game), `seats.ts` (`Seats`:
+  each seat's `SeatKind`, human or computer, and the engine's `TurnOrder` over seat
+  indexes; `makeSeats`, `passTurn`, `seatName`), `session.ts` (`createSession`: current
+  state, `canApply`, undo history, `isIrreversible` moves that clear it, `newGame(seed?,
+  options?)`, injectable clock and seed source; with seats it also clears the history when
+  the seat to play changes, rejects moves while a computer plays and offers
+  `playComputer()`), `computer-turns.ts` (`createComputerTurns`: one computer move per
+  `delayMs`, `schedule`/`cancel`), `seat-picker.tsx` (the Human/Computer form per seat),
+  `use-canvas-game.ts` (the
   canvas hook: sizing by `ResizeObserver` at `devicePixelRatio`, pointer events in
   CSS pixels, frames only on `invalidate()` or while `animating()`),
   `game-frame.tsx` (control bar with Back, New deal and an optional Undo, an optional
-  `side` panel left of the area the hook measures) and `draw.ts` (`roundRect`,
+  `side` panel left of the area the hook measures, an optional `overlay` over both) and `draw.ts` (`roundRect`,
   `drawSlot`, `drawBanner`).
 - `src/kits/cards/` — what card games use, re-exported by its `index.ts` barrel: the
   plain-JSON card model and `makeDeck`, atlas and frame names, card SFX
@@ -54,8 +60,9 @@ Yahtzee's scorecard; the cards and dice are drawn on a canvas through the user's
   per-game helpers), `view.ts` (geometry, hit testing, sprites, drawing) and
   `index.tsx` (the thin Preact component: session, canvas hook, `DragDrop` or
   buttons, extra controls), with `*.test.ts` beside them. Yahtzee adds
-  `scorecard.tsx`: a DOM table beside the canvas (crisp text, hover and keyboard
-  focus), tested with `scorecard.test.tsx`.
+  `scorecard.tsx`: a DOM table beside the canvas with a column per seat (crisp text,
+  hover and keyboard focus), tested with `scorecard.test.tsx`, and `computer.ts`, the
+  computer seats' player.
 - `assets/` — Kenney asset packs (CC0), imported with `?url`.
 - `docs/` — [`roadmap.md`](docs/roadmap.md) (milestone order and what finishes
   each), [`backlog.md`](docs/backlog.md) (all open work),

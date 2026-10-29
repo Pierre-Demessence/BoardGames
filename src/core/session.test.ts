@@ -1,7 +1,9 @@
 import type { GameRules } from './rules';
+import type { SeatKind, Seats } from './seats';
 
 import { describe, expect, it } from 'vitest';
 
+import { makeSeats, passTurn } from './seats';
 import { createSession } from './session';
 
 interface CounterState {
@@ -150,5 +152,102 @@ describe('createSession', () => {
     session.newGame(1234);
     expect(session.seed).toBe(1234);
     expect(session.state.seed).toBe(1234);
+  });
+});
+
+interface RelayState {
+  log: string[];
+  seats: Seats;
+}
+
+type RelayMove = 'bad' | 'pass' | 'step';
+
+/** Two seats: `step` adds to the log and keeps the turn, `pass` hands the turn over; the game ends at 4 entries; `bad` is always illegal. */
+const relay: GameRules<RelayState, RelayMove, { kinds: SeatKind[] }> = {
+  seats: state => state.seats,
+  setup: (_seed, options) => ({ log: [], seats: makeSeats(options.kinds) }),
+  status: state => (state.log.length >= 4 ? 'won' : 'playing'),
+  apply(state, move) {
+    if (state.log.length >= 4 || move === 'bad')
+      return null;
+    return {
+      log: [...state.log, move],
+      seats: move === 'pass' ? passTurn(state.seats) : state.seats,
+    };
+  },
+};
+
+function makeRelay(kinds: SeatKind[], computer?: (state: RelayState) => RelayMove) {
+  return createSession(relay, { computer, options: { kinds }, undoable: true });
+}
+
+describe('createSession with seats', () => {
+  it('keeps undo within one seat turn: a move that hands the turn over clears the history', () => {
+    const session = makeRelay(['human', 'human']);
+    session.apply('step');
+    expect(session.canUndo).toBe(true);
+    session.apply('pass');
+    expect(session.canUndo).toBe(false);
+    expect(session.undo()).toBe(false);
+    session.apply('step');
+    expect(session.canUndo).toBe(true);
+  });
+
+  it('keeps undo after a move that leaves the turn with a single seat', () => {
+    const session = makeRelay(['human']);
+    session.apply('pass');
+    expect(session.canUndo).toBe(true);
+    expect(session.undo()).toBe(true);
+  });
+
+  it('rejects human moves and undo while a computer is to play', () => {
+    const session = makeRelay(['human', 'computer'], () => 'step');
+    session.apply('step');
+    session.apply('pass');
+    expect(session.computerToPlay).toBe(true);
+    expect(session.canApply('step')).toBe(false);
+    expect(session.apply('step')).toBe(false);
+    expect(session.state.log).toEqual(['step', 'pass']);
+    expect(session.canUndo).toBe(false);
+    expect(session.undo()).toBe(false);
+  });
+
+  it('plays the computer move and returns it', () => {
+    const session = makeRelay(['computer', 'human'], () => 'pass');
+    expect(session.computerToPlay).toBe(true);
+    expect(session.playComputer()).toBe('pass');
+    expect(session.state.log).toEqual(['pass']);
+    expect(session.computerToPlay).toBe(false);
+  });
+
+  it('returns null from playComputer on a human turn', () => {
+    const session = makeRelay(['human', 'computer'], () => 'pass');
+    expect(session.playComputer()).toBeNull();
+    expect(session.state.log).toEqual([]);
+  });
+
+  it('returns null from playComputer once the game is over, even if the next seat is a computer', () => {
+    const session = makeRelay(['human', 'computer'], () => 'pass');
+    session.apply('step');
+    session.apply('step');
+    session.apply('step');
+    session.apply('pass');
+    expect(session.status).toBe('won');
+    expect(session.computerToPlay).toBe(false);
+    expect(session.playComputer()).toBeNull();
+  });
+
+  it('throws when the computer picks an illegal move', () => {
+    const session = makeRelay(['computer'], () => 'bad');
+    expect(() => session.playComputer()).toThrow();
+    expect(session.state.log).toEqual([]);
+  });
+
+  it('newGame takes new options for this game and the later ones', () => {
+    const session = makeRelay(['human']);
+    session.newGame(undefined, { kinds: ['human', 'computer', 'computer'] });
+    expect(session.state.seats.kinds).toEqual(['human', 'computer', 'computer']);
+    session.newGame();
+    expect(session.state.seats.kinds).toEqual(['human', 'computer', 'computer']);
   });
 });

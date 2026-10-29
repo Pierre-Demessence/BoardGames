@@ -1,7 +1,7 @@
 /**
  * The frame around a canvas game: the control bar (Back, New deal, optional
- * Undo and the game's own items), an optional side panel and the area the
- * canvas hook fills.
+ * Undo and the game's own items), an optional side panel, the area the
+ * canvas hook fills and an optional overlay on top of both.
  */
 
 import type { ComponentChildren, RefObject } from 'preact';
@@ -15,8 +15,12 @@ export interface GameFrameProps {
   children?: ComponentChildren;
   /** Label of the new-game button. */
   newGameLabel?: string;
+  /** Shown centered over the side panel and the canvas area, which stay mounted underneath. */
+  overlay?: ComponentChildren;
   /** A panel left of the canvas area, such as a scorecard. */
   side?: ComponentChildren;
+  /** Width of the side panel in CSS pixels, when the default does not fit its content. */
+  sideWidth?: number;
   /** Greys out the Undo button, for a game with nothing to undo. */
   undoDisabled?: boolean;
   onBack: () => void;
@@ -33,7 +37,9 @@ export function GameFrame({
   onBack,
   onNewDeal,
   onUndo,
+  overlay,
   side,
+  sideWidth,
   undoDisabled = false,
 }: GameFrameProps) {
   const area = (
@@ -70,11 +76,12 @@ export function GameFrame({
         )}
         {children}
       </div>
-      {side
+      {side || overlay
         ? (
             <div class={styles.body}>
-              <div class={styles.side}>{side}</div>
+              {side && <div class={styles.side} style={sideWidth === undefined ? undefined : { flexBasis: `${sideWidth}px` }}>{side}</div>}
               {area}
+              {overlay && <div class={styles.overlay}>{overlay}</div>}
             </div>
           )
         : area}

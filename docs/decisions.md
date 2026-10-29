@@ -18,6 +18,14 @@ A card's `id` is its index in the deal, a plain number. The view creates one ent
 
 `stand` hands the turn to the dealer, and the component sends `dealerStep` every `DEALER_DELAY` until the round is over. Putting the whole dealer turn inside `stand` would be shorter, but the dealer's cards would appear at once; the pacing belongs to the view while the rules stay free of timers.
 
+## Seats live in the game state
+
+A multi-seat game keeps its `Seats` (each seat's kind and the engine's `TurnOrder`) in its state, and `GameRules.seats` exposes them to the session. Keeping them in the session would be simpler, but a saved game (M4.3) and rules tests from a fixed seed would then not know who plays or whose turn it is.
+
+## Undo stays within one seat's turn
+
+When a move changes the seat to play, the session clears the history, and it refuses Undo while a computer plays. Otherwise a player could undo into the previous seat's turn, or take back a computer move after seeing the dice it would roll. In a one-seat game the seat never changes, so scoring stays undoable as before.
+
 ## The audio context resumes on `pointerdown` and `pointerup`
 
 Browsers only let an audio context play after a user gesture. A mouse `pointerdown` can arrive before the browser counts it as user activation, so the first-press listener also waits for `pointerup` and stops once the context is running.

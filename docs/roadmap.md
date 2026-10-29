@@ -11,12 +11,6 @@ Next ID: M5
 
 The first game that is not cards, and the first with more than one player.
 
-- M1.2 Players in core: a game's state says whose turn it is; each seat is a human
-  or the computer, picked before the deal; the session plays computer turns at a
-  readable pace, the way Blackjack's dealer plays today. Yahtzee takes 1 to 4 seats.
-  Whose turn it is is the engine's plain `TurnOrder` from `modules/turn-based`
-  (engine plan `docs/plans/plain-data-logic-modules.md`); anything it misses, such
-  as simultaneous turns or phases, is reported to the engine.
 - M1.3 Yahtzee computer player: picks which dice to hold and which box to score.
 
 Done when two people and a computer player can finish a Yahtzee game on one

@@ -1,12 +1,14 @@
 /**
  * The Yahtzee scorecard: a table beside the canvas, so the text stays crisp and
- * boxes get hover and keyboard focus. An open box that may be scored now is a
- * button showing its would-be score in italics with a dashed outline; a filled
- * box shows its score in bold. Nothing relies on color alone.
+ * boxes get hover and keyboard focus. One column per seat; with several seats the seat
+ * to play has an arrow and a bold header. In that column, on a human's turn, an open
+ * box that may be scored now is a button showing its would-be score in italics with a
+ * dashed outline; a filled box shows its score in bold. Nothing relies on color alone.
  */
 
 import type { Box, YahtzeeState } from './rules';
 
+import { isComputerTurn, seatName, seatToPlay } from '../../core';
 import {
   canScore,
   LOWER_BOXES,
@@ -14,6 +16,7 @@ import {
   totals,
   UPPER_BONUS_THRESHOLD,
   UPPER_BOXES,
+  yahtzeeRules,
 } from './rules';
 import styles from './scorecard.module.css';
 
@@ -42,59 +45,74 @@ export const BOX_LABELS: Record<Box, string> = {
 };
 
 export function Scorecard({ onScore, showPreviews, state }: ScorecardProps) {
-  const sums = totals(state);
+  const { kinds } = state.seats;
+  const multi = state.sheets.length > 1;
+  const over = yahtzeeRules.status(state) === 'won';
+  const playing = over ? null : seatToPlay(state.seats);
+  const canPick = showPreviews && !over && !isComputerTurn(state.seats);
+  const sums = state.sheets.map(totals);
 
-  const boxRow = (box: Box) => {
-    const value = state.boxes[box];
-    const label = BOX_LABELS[box];
-    let cell;
+  const boxCell = (box: Box, seat: number) => {
+    const value = state.sheets[seat]!.boxes[box];
+    let cell = null;
     if (value !== null) {
       cell = <strong>{value}</strong>;
     }
-    else if (showPreviews && canScore(state, box)) {
+    else if (seat === playing && canPick && canScore(state, box)) {
       const preview = scoreFor(state, box);
       cell = (
         <button
           class={styles.open}
-          aria-label={`Score ${preview} in ${label}`}
+          aria-label={`Score ${preview} in ${BOX_LABELS[box]}`}
           onClick={() => onScore(box)}
         >
           {preview}
         </button>
       );
     }
-    else {
-      cell = null;
-    }
-    return (
-      <tr key={box}>
-        <th scope="row">{label}</th>
-        <td>{cell}</td>
-      </tr>
-    );
+    return <td key={seat}>{cell}</td>;
   };
 
+  const boxRow = (box: Box) => (
+    <tr key={box}>
+      <th scope="row">{BOX_LABELS[box]}</th>
+      {state.sheets.map((_, seat) => boxCell(box, seat))}
+    </tr>
+  );
+
+  const sumRow = (label: string, text: (seat: number) => string, rowClass: string) => (
+    <tr class={rowClass}>
+      <th scope="row">{label}</th>
+      {state.sheets.map((_, seat) => <td key={seat}>{text(seat)}</td>)}
+    </tr>
+  );
+
   return (
-    <table class={styles.card} aria-label="Scorecard">
+    <table class={multi ? `${styles.card} ${styles.multi}` : styles.card} aria-label="Scorecard">
+      {multi && (
+        <thead>
+          <tr>
+            <td />
+            {state.sheets.map((_, seat) => (
+              <th
+                key={seat}
+                scope="col"
+                class={seat === playing ? styles.current : undefined}
+                aria-current={seat === playing ? 'true' : undefined}
+              >
+                {`${seat === playing ? '▶ ' : ''}${seatName(kinds, seat)}`}
+              </th>
+            ))}
+          </tr>
+        </thead>
+      )}
       <tbody>
         {UPPER_BOXES.map(boxRow)}
-        <tr class={styles.sum}>
-          <th scope="row">Upper total</th>
-          <td>{`${sums.upper} / ${UPPER_BONUS_THRESHOLD}`}</td>
-        </tr>
-        <tr class={styles.sum}>
-          <th scope="row">{`Bonus (${UPPER_BONUS_THRESHOLD}+)`}</th>
-          <td>{sums.upperBonus > 0 ? `+${sums.upperBonus}` : '0'}</td>
-        </tr>
+        {sumRow('Upper total', seat => `${sums[seat]!.upper} / ${UPPER_BONUS_THRESHOLD}`, styles.sum!)}
+        {sumRow(`Bonus (${UPPER_BONUS_THRESHOLD}+)`, seat => (sums[seat]!.upperBonus > 0 ? `+${sums[seat]!.upperBonus}` : '0'), styles.sum!)}
         {LOWER_BOXES.map(boxRow)}
-        <tr class={styles.sum}>
-          <th scope="row">Yahtzee bonus</th>
-          <td>{sums.yahtzeeBonus > 0 ? `+${sums.yahtzeeBonus}` : '0'}</td>
-        </tr>
-        <tr class={styles.total}>
-          <th scope="row">Total</th>
-          <td>{sums.grand}</td>
-        </tr>
+        {sumRow('Yahtzee bonus', seat => (sums[seat]!.yahtzeeBonus > 0 ? `+${sums[seat]!.yahtzeeBonus}` : '0'), styles.sum!)}
+        {sumRow('Total', seat => String(sums[seat]!.grand), styles.total!)}
       </tbody>
     </table>
   );

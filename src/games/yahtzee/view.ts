@@ -14,8 +14,8 @@ import type { YahtzeeState } from './rules';
 
 import { Canvas2DRenderer } from '@pierre/ecs/modules/render-canvas2d';
 
-import { drawBanner } from '../../core';
-import { DICE_COUNT, totals, yahtzeeRules } from './rules';
+import { drawBanner, isComputerTurn, seatName } from '../../core';
+import { DICE_COUNT, leaders, totals, yahtzeeRules } from './rules';
 
 export interface YahtzeeLayout {
   /** Height of the final banner. */
@@ -103,6 +103,18 @@ export function dieAt(layout: YahtzeeLayout, point: Point): number | null {
   return index === -1 ? null : index;
 }
 
+/** The end-of-game line: the final score of a solo game, or who won and with how much. */
+export function resultText(state: YahtzeeState): string {
+  const winners = leaders(state);
+  const score = totals(state.sheets[winners[0]!]!).grand;
+  if (state.sheets.length === 1)
+    return `Final score: ${score}`;
+  const { kinds } = state.seats;
+  if (winners.length === 1)
+    return `${seatName(kinds, winners[0]!)} wins with ${score}`;
+  return `Tie: ${winners.map(seat => seatName(kinds, seat)).join(', ')} with ${score}`;
+}
+
 /** Draws the felt, the dice, a "Held" label under each held die, a hint and the final banner. */
 export function drawTable(
   ctx: CanvasRenderingContext2D,
@@ -122,7 +134,7 @@ export function drawTable(
   ctx.textBaseline = 'top';
   ctx.font = `${layout.fontSize}px system-ui`;
   if (yahtzeeRules.status(state) === 'won') {
-    drawBanner(ctx, size.width, size.height, layout.bannerH, `Final score: ${totals(state).grand}`);
+    drawBanner(ctx, size.width, size.height, layout.bannerH, resultText(state));
     return;
   }
   if (state.rollsUsed === 0) {
@@ -137,7 +149,7 @@ export function drawTable(
     if (die.held)
       ctx.fillText('Held', layout.xs[index]!, layout.centerY + layout.dieSize / 2 + 6);
   });
-  if (state.rollsUsed < 3) {
+  if (state.rollsUsed < 3 && !isComputerTurn(state.seats)) {
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.fillText('Click a die to hold it', size.width / 2, layout.centerY + layout.dieSize / 2 + layout.fontSize * 2.5);
   }
