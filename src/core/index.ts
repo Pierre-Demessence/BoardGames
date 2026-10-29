@@ -7,6 +7,7 @@ export type { CanvasGame, CanvasGameOptions, Point, Size } from './use-canvas-ga
 
 export { drawBanner, drawSlot, roundRect } from './draw';
 export { GameFrame } from './game-frame';
+export { default as frameStyles } from './game-frame.module.css';
 export { GAMES } from './registry';
 export { createSession } from './session';
 export { useCanvasGame } from './use-canvas-game';

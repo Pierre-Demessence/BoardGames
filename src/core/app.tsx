@@ -124,7 +124,7 @@ function GameScreen({ def, onBack, resources }: GameProps & { def: GameDef }) {
         {' '}
         {error}
         <div>
-          <button onClick={onBack}>← Games</button>
+          <button class={styles.back} onClick={onBack}>← Games</button>
         </div>
       </div>
     );

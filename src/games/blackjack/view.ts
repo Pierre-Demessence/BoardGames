@@ -19,6 +19,10 @@ import { computeTableLayout, rowPositions } from '../../kits/cards';
 import { handValue, isBust, roundMessage } from './rules';
 
 export interface BlackjackLayout extends TableLayout {
+  /** Height of the result banner: it fits between the dealer's cards and the player's label. */
+  bannerH: number;
+  /** Vertical middle of the result banner. */
+  bannerY: number;
   /** Top of the dealer's cards. */
   dealerY: number;
   /** Top of the player's cards. */
@@ -32,6 +36,8 @@ const LABEL_ROOM = 0.4;
 /** Two hands with their labels plus a band between them, in card heights. */
 const HEIGHT_IN_CARDS = 2 * (1 + LABEL_ROOM) + 0.6;
 const CARD_ASPECT = 110 / 80;
+/** Preferred banner height, in card heights; it shrinks when the band between the hands is thinner. */
+const BANNER_HEIGHT = 0.9;
 
 const TABLE_COLOR = '#0b5e3a';
 /** The banner text always spells the outcome out; the color is a second cue. */
@@ -53,12 +59,18 @@ export function blackjackLayout(size: Size): BlackjackLayout {
     cardW = Math.max(1, Math.floor(room / HEIGHT_IN_CARDS / CARD_ASPECT));
     cardH = Math.round(cardW * CARD_ASPECT);
   }
+  const dealerY = base.topY + Math.round(cardH * LABEL_ROOM);
+  const playerY = size.height - base.topY - cardH;
+  const bandTop = dealerY + cardH;
+  const bandBottom = playerY - Math.round(cardH * LABEL_ROOM);
   return {
     ...base,
+    bannerH: Math.max(1, Math.min(Math.round(cardH * BANNER_HEIGHT), bandBottom - bandTop)),
+    bannerY: (bandTop + bandBottom) / 2,
     cardH,
     cardW,
-    dealerY: base.topY + Math.round(cardH * LABEL_ROOM),
-    playerY: size.height - base.topY - cardH,
+    dealerY,
+    playerY,
   };
 }
 
@@ -95,8 +107,17 @@ export function drawTable(
   renderer.render(renderContext);
 
   const message = roundMessage(state);
-  if (message !== null && state.result !== null)
-    drawBanner(ctx, size.width, size.height, Math.round(layout.cardH * 0.9), message, BANNER_COLORS[state.result]);
+  if (message !== null && state.result !== null) {
+    drawBanner(
+      ctx,
+      size.width,
+      size.height,
+      layout.bannerH,
+      message,
+      BANNER_COLORS[state.result],
+      layout.bannerY,
+    );
+  }
 }
 
 /** "Name: value", with "Bust" spelled out so a bust never relies on the label color. */

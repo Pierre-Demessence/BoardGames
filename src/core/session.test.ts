@@ -54,6 +54,14 @@ describe('createSession', () => {
     expect(session.state.seed).toBe(42);
   });
 
+  it('tells whether a move is legal without changing the state or the history', () => {
+    const { session } = makeSession();
+    expect(session.canApply(4)).toBe(true);
+    expect(session.canApply(20)).toBe(false);
+    expect(session.state.total).toBe(1);
+    expect(session.canUndo).toBe(false);
+  });
+
   it('applies a move with the current time', () => {
     const { session, setTime } = makeSession();
     setTime(500);

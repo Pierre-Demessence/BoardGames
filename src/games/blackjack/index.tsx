@@ -13,8 +13,7 @@ import type { BlackjackLayout } from './view';
 
 import { useEffect, useRef, useState } from 'preact/hooks';
 
-import { createSession, GameFrame, useCanvasGame } from '../../core';
-import frameStyles from '../../core/game-frame.module.css';
+import { createSession, frameStyles, GameFrame, useCanvasGame } from '../../core';
 import { createCardWorld, playCardSfx, syncCardSprites } from '../../kits/cards';
 import { blackjackRules } from './rules';
 import { blackjackLayout, drawTable, placements } from './view';

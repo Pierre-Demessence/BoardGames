@@ -87,7 +87,8 @@ export function fanColumn(
   // Only the gaps between cards squeeze: nothing sits below the last card.
   const span = offsets.at(-1) ?? 0;
   const room = maxBottom - cardH - top;
-  const scale = span > room ? Math.max(0, room) / span : 1;
+  // A zero span (one card, or cards too small to fan) has nothing to squeeze, even with no room.
+  const scale = span > 0 && span > room ? Math.max(0, room) / span : 1;
   return offsets.map(offset => top + Math.floor(offset * scale));
 }
 

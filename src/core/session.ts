@@ -12,6 +12,8 @@ export interface Session<S, M> {
   readonly status: GameStatus;
   /** Applies a move; returns `false` (state and history untouched) when it is illegal. */
   apply: (move: M) => boolean;
+  /** Whether `move` is legal now; nothing changes. */
+  canApply: (move: M) => boolean;
   /** Starts a new game with `seed`, or a fresh random one, and clears the history. */
   newGame: (seed?: number) => void;
   /** Restores the state before the last applied move; returns `false` with no history. */
@@ -53,6 +55,9 @@ export function createSession<S, M, O>(
         history.push(state);
       state = next;
       return true;
+    },
+    canApply(move) {
+      return rules.apply(state, move, clock()) !== null;
     },
     get canUndo() {
       return history.length > 0;

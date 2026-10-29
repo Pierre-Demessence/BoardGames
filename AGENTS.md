@@ -24,12 +24,12 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 - `src/main.tsx` — `start()` mounts `AppLoader` and returns a dispose function that
   unmounts it and closes the `AudioContext`.
 - `src/core/` — what any game uses, re-exported by its `index.ts` barrel (types,
-  `GAMES`, `createSession`, `useCanvasGame`, `GameFrame` and the draw helpers): `app.tsx` (`AppLoader` loads the resources once,
+  `GAMES`, `createSession`, `useCanvasGame`, `GameFrame`, its `frameStyles` and the draw helpers): `app.tsx` (`AppLoader` loads the resources once,
   `App` switches between the hub and the selected game and resumes the
   `AudioContext` on the first pointer press), `registry.ts` (`GAMES`: id, name,
   description and a lazy `load()` per game), `resources.ts` (`GameResources`:
   atlases, plus audio that is `null` when it fails to load), `rules.ts` (the
-  `GameRules` contract) and `session.ts` (`createSession`: current state, undo
+  `GameRules` contract) and `session.ts` (`createSession`: current state, `canApply`, undo
   history, `newGame`, injectable clock and seed source), `use-canvas-game.ts` (the
   canvas hook: sizing by `ResizeObserver` at `devicePixelRatio`, pointer events in
   CSS pixels, frames only on `invalidate()` or while `animating()`),

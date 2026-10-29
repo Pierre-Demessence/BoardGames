@@ -16,8 +16,7 @@ import type { DropZone } from './view';
 import { DragDrop } from '@pierre/ecs/modules/drag-drop';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
-import { createSession, GameFrame, useCanvasGame } from '../../core';
-import frameStyles from '../../core/game-frame.module.css';
+import { createSession, frameStyles, GameFrame, useCanvasGame } from '../../core';
 import { createCardWorld, dragProbe, playCardSfx, rectContains, syncCardSprites } from '../../kits/cards';
 import { canDragRun, dealBlock, RUNS_TO_WIN, spiderRules } from './rules';
 import { cardPoint, drawTable, dropZones, pickCard, placements, spiderLayout, stockRect } from './view';
@@ -55,11 +54,9 @@ function createRuntime(): Runtime {
       threshold: DRAG_THRESHOLD,
       contains: (zone, point) => rectContains(zone.rect, point),
       targets: () => (runtime.layout ? dropZones(runtime.session.state, runtime.layout) : []),
-      accepts: (zone, payload) => spiderRules.apply(
-        runtime.session.state,
+      accepts: (zone, payload) => runtime.session.canApply(
         { from: payload.column, index: payload.index, to: zone.column, type: 'move' },
-        Date.now(),
-      ) !== null,
+      ),
       probe: (drag: DragSession<DragPayload>) => dragProbe(
         { cards: drag.payload.cards, position: drag.position },
         runtime.layout!,

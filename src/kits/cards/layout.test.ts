@@ -89,6 +89,23 @@ describe('fanColumn', () => {
   });
 });
 
+describe('tiny canvases', () => {
+  it('stacks a single card instead of producing NaN when there is no room', () => {
+    expect(fanColumn(column(1, 0), 100, 50, 100)).toEqual([100]);
+  });
+
+  it('keeps every layout number and card position finite down to a 1 px canvas', () => {
+    for (let size = 1; size <= 60; size++) {
+      for (const columns of [7, 10]) {
+        const layout = computeTableLayout(size, size, columns);
+        expect(Object.values(layout).every(Number.isFinite)).toBe(true);
+        const ys = fanColumn(column(5, 2), layout.tableauTop, layout.tableauBottom, layout.cardH);
+        expect(ys.every(Number.isFinite)).toBe(true);
+      }
+    }
+  });
+});
+
 describe('rowPositions', () => {
   it('returns nothing for no cards', () => {
     expect(rowPositions(0, 80, 800, 50)).toEqual([]);

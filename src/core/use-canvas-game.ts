@@ -109,6 +109,24 @@ export function useCanvasGame(options: CanvasGameOptions): CanvasGame {
     });
     observer.observe(area);
 
+    // The pixel density changes without a resize when the window moves to a display with another
+    // scaling. A resolution query only matches the current density, so it fires once on a change
+    // and is re-armed for the new value.
+    let stopDensityWatch = (): void => {};
+    const watchDensity = (): void => {
+      if (typeof window.matchMedia !== 'function')
+        return;
+      const query = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      const onChange = (): void => {
+        const rect = area.getBoundingClientRect();
+        applySize(rect.width, rect.height);
+        watchDensity();
+      };
+      query.addEventListener('change', onChange, { once: true });
+      stopDensityWatch = () => query.removeEventListener('change', onChange);
+    };
+    watchDensity();
+
     const toPoint = (event: MouseEvent): Point => {
       const rect = canvas.getBoundingClientRect();
       return { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -141,6 +159,7 @@ export function useCanvasGame(options: CanvasGameOptions): CanvasGame {
       disposed = true;
       ctrl.abort();
       observer.disconnect();
+      stopDensityWatch();
       if (frame !== null)
         cancelAnimationFrame(frame);
       scheduleRef.current = () => {};

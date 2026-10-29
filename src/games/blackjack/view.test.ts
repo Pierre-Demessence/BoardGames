@@ -17,6 +17,22 @@ describe('blackjackLayout', () => {
   });
 });
 
+describe('result banner', () => {
+  it.each([
+    { height: 300, width: 1600 },
+    { height: 400, width: 1000 },
+    { height: 700, width: 1000 },
+    { height: 900, width: 500 },
+  ])('sits between the dealer cards and the player label at $width x $height', (size) => {
+    const layout = blackjackLayout(size);
+    const top = layout.bannerY - layout.bannerH / 2;
+    const bottom = layout.bannerY + layout.bannerH / 2;
+    expect(layout.bannerH).toBeGreaterThan(0);
+    expect(top).toBeGreaterThanOrEqual(layout.dealerY + layout.cardH);
+    expect(bottom).toBeLessThanOrEqual(layout.playerY - Math.round(layout.cardH * 0.4));
+  });
+});
+
 describe('placements', () => {
   it('places only the dealt cards, dealer above player, with distinct paint orders', () => {
     const state = blackjackRules.setup(4, undefined, 0);

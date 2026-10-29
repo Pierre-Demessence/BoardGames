@@ -144,6 +144,41 @@ describe('useCanvasGame', () => {
     expect(onResize).toHaveBeenCalledWith({ height: 300, width: 400 });
   });
 
+  it('resizes the backing store when the pixel density changes without a resize', () => {
+    vi.stubGlobal('devicePixelRatio', 1);
+    const listeners: (() => void)[] = [];
+    const queries: string[] = [];
+    vi.stubGlobal('matchMedia', (query: string) => {
+      queries.push(query);
+      return {
+        removeEventListener: vi.fn(),
+        addEventListener: (_type: string, listener: () => void) => listeners.push(listener),
+      };
+    });
+    const draw = vi.fn();
+    const view = mount({ draw });
+    view.resize(400, 300);
+    const canvas = view.container.querySelector('canvas')!;
+    expect(canvas.width).toBe(400);
+    vi.spyOn(canvas.parentElement!, 'getBoundingClientRect').mockReturnValue({ height: 300, width: 400 } as DOMRect);
+
+    vi.stubGlobal('devicePixelRatio', 2);
+    listeners.shift()!();
+    expect(canvas.width).toBe(800);
+    expect(canvas.height).toBe(600);
+    expect(context.setTransform).toHaveBeenLastCalledWith(2, 0, 0, 2, 0, 0);
+    expect(queries).toEqual(['(resolution: 1dppx)', '(resolution: 2dppx)']);
+    expect(listeners).toHaveLength(1);
+  });
+
+  it('removes the pixel density listener on unmount', () => {
+    const removeEventListener = vi.fn();
+    vi.stubGlobal('matchMedia', () => ({ addEventListener: vi.fn(), removeEventListener }));
+    const view = mount({ draw: vi.fn() });
+    view.unmount();
+    expect(removeEventListener).toHaveBeenCalledTimes(1);
+  });
+
   it('re-lays out on a new size but ignores an unchanged one', () => {
     const draw = vi.fn();
     const onResize = vi.fn();

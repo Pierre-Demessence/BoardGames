@@ -11,3 +11,14 @@
   font: 18px system-ui;
   color: #f88;
 }
+
+.back {
+  margin-top: 16px;
+  padding: 4px 12px;
+  font: 600 13px system-ui;
+  color: #cde;
+  background: #2a5a4a;
+  border: 1px solid #3fbf8f;
+  border-radius: 6px;
+  cursor: pointer;
+}

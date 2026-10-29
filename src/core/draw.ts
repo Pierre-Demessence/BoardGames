@@ -46,7 +46,7 @@ export function drawSlot(
   ctx.fillText(label, pos.x + cardW / 2, pos.y + cardH / 2);
 }
 
-/** A dark band across the canvas with a large text, such as "You win!". */
+/** A dark band across the canvas with a large text, such as "You win!". It is centered on `centerY`, the canvas middle by default. */
 export function drawBanner(
   ctx: CanvasRenderingContext2D,
   canvasW: number,
@@ -54,8 +54,9 @@ export function drawBanner(
   bandH: number,
   text: string,
   color = '#ffe14d',
+  centerY = canvasH / 2,
 ): void {
-  const cy = canvasH / 2;
+  const cy = centerY;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(0, cy - bandH / 2, canvasW, bandH);
   ctx.fillStyle = color;
