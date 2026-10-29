@@ -1,6 +1,6 @@
 # B19 Shared game core and card kit
 
-Status: B19.3 committed; next open item is B19.4 (Spider).
+Status: B19.4 committed; next open item is B19.5 (Blackjack and cleanup).
 
 ## Goal
 
@@ -85,9 +85,12 @@ Delivers B19 and, on the way, B2, B3, B5, B9, B10–B18.
   Decided during the run: `createCardWorld(cardCount)` (world with the sprite components plus one entity per card id) was added to `src/kits/cards/sprites.ts` and is used by each game's view on a new game; alternative: a `makeWorld` per game. The hook does not invalidate on its own after pointer events (games call `invalidate()` when they change something) and draws at once, not on the next frame, after a resize.
   Decided during the run: the victory animation now settles (cards on the floor slow down and stop), so the hook can stop drawing frames as criterion 14 requires; before, cards slid sideways for ever. Alternative: keep animating without end. Change in `stepVictory` in `src/games/solitaire/view.ts`.
   Decided during the run: Solitaire's `apply` also refuses a draw with an empty stock and waste, and a move from one foundation to another; the automatic finish plays its moves through the session (each is an undo step), and Undo is disabled while it runs and after the win. Alternative: allow them. Change in `src/games/solitaire/rules.ts` and `undoAllowed` in `index.tsx`.
-- [ ] B19.4 Spider. Same split, with tests for criteria 7, 8 and 9 and an Undo button. Delete B15 (now covered for both tableau games), B17 and B18 from the backlog, and Spider from B3's line.
+- [x] B19.4 Spider. Same split, with tests for criteria 7, 8 and 9 and an Undo button. Delete B15 (now covered for both tableau games), B17 and B18 from the backlog, and Spider from B3's line.
   Visible after: no "↻" on the empty stock; a refused deal explains itself; deep columns fit; Undo button.
   Needs you: play Spider until at least one run completes, with an Undo and a refused deal (at the end).
+  Decided during the run: the drag geometry both tableau games need (`Rect`, `rectContains`, `DragView`, `dragProbe`, and the new `floatDraggedCards` for the fanned dragged cards) moved from `src/games/solitaire/view.ts` into `src/kits/cards/drag.ts` (with tests), instead of being copied into Spider's view, because `AGENTS.md` forbids cross-game imports and says shared code moves to the kit; Solitaire's behavior is unchanged. Alternative: duplicate the helpers in each view. Change by moving them back into the views.
+  Decided during the run: Spider's `apply` takes `move { from, index, to }` with column numbers (0-9), refuses a move onto its own column, and `dealBlock(state)` (`'empty-stock'` or `'empty-column'` or `null`) gives the reason the hint shows when a deal is refused; the stock cards are not placed as sprites, the deck is drawn by `drawTable`, and an empty stock is an outline without "↻". Undo stays available after the win (there is no win animation to protect, unlike Solitaire). Alternative: disable Undo after the win. Change `undoDisabled` in `src/games/spider/index.tsx`.
+  Decided during the run: a completed run is cleared in a `while` loop per column and only when all 13 cards are face-up and of one suit (B17), after both moves and deals. Alternative: check once per column. Change `clearCompletedRuns` in `src/games/spider/rules.ts`.
 - [ ] B19.5 Blackjack and cleanup. Same split, with tests for criteria 3 and 9 (no Undo). Delete `src/shared/`. Final `AGENTS.md` pass. Delete B3, B13, B16 and B19 from the backlog. Re-check every criterion as a whole.
   Visible after: a dealer blackjack ends the round at once.
   Needs you: play a few Blackjack rounds, including a dealer blackjack if one comes up (at the end).

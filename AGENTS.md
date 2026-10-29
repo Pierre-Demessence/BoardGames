@@ -38,17 +38,18 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 - `src/kits/cards/` — what card games use, re-exported by its `index.ts` barrel: the
   plain-JSON card model and `makeDeck`, atlas and frame names, table layout
   (`computeTableLayout`, `fanColumn`, `rowPositions`), layout constants,
-  `createCardWorld` and `syncCardSprites`. A kit imports neither another kit nor a game.
+  `createCardWorld` and `syncCardSprites`, and the drag geometry (`rectContains`,
+  `dragProbe`, `floatDraggedCards`). A kit imports neither another kit nor a game.
 - `src/hub.tsx` — the game selector; it lists `GAMES`.
 - `src/shared/` — what the games still use until they move to `core` and the kits,
   re-exported by the `index.ts` barrel (which also forwards the card-kit names the
   games import): the entity-based deck, SFX loading, viewport layout
   (`computeLayout`), `BAR_HEIGHT`, `SFX_VOLUME`, and `GameShell` + `makeWorld`
   (`shell.tsx`).
-- `src/games/<name>/` — one folder per game. A migrated game (Solitaire) has
+- `src/games/<name>/` — one folder per game. A migrated game (Solitaire, Spider) has
   `rules.ts` (the `GameRules` and per-game helpers), `view.ts` (geometry, hit
   testing, sprites, drawing) and `index.tsx` (the thin Preact component: session,
-  canvas hook, `DragDrop`, extra controls). Games not yet migrated keep `game.ts`,
+  canvas hook, `DragDrop`, extra controls). A game not yet migrated (Blackjack) keeps `game.ts`,
   `render.ts` (`syncLayout` + `renderFrame`) and an `index.tsx` with its own rAF loop.
 - `assets/` — Kenney asset packs (CC0), imported with `?url`.
 - `docs/` — [`backlog.md`](docs/backlog.md) (all open work),
@@ -57,7 +58,7 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 
 ## Conventions
 
-- **Game logic is pure.** Games not yet moved to `core` keep a `game.ts` with no
+- **Game logic is pure.** A game not yet moved to `core` (Blackjack) keeps a `game.ts` with no
   DOM, canvas or ECS world access: it receives an entity-id factory and transforms
   plain state, so it can be unit tested.
 - **Rules contract.** A migrated game implements `GameRules<S, M, O>` from
@@ -71,13 +72,12 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   id with `createCardWorld()` on each new game; each frame `syncCardSprites()`
   writes `PositionDef`, `RenderableDef` and `RenderOrderDef` from the state, then
   the engine's `Canvas2DRenderer` draws. Solitaire's victory animation places the
-  cards itself. Not yet migrated games do the same through `syncLayout()` and
-  `renderFrame()`.
+  cards itself. Blackjack does the same through `syncLayout()` and `renderFrame()`.
 - **Canvas games use `useCanvasGame`.** The hook owns sizing, the pointer
   listeners and the frame loop, and cleans up on unmount; a game draws in CSS
   pixels and calls `invalidate()` after it changes something. Mutable runtime
-  (session, drag, timers) sits in a `useRef`. Games not yet migrated keep their own
-  rAF loop in `useEffect` and render through `GameShell`.
+  (session, drag, timers) sits in a `useRef`. Blackjack keeps its own rAF loop in
+  `useEffect` and renders through `GameShell`.
 - **Styles live in CSS modules** (`*.module.css`). Inline `style` is only for
   computed values such as the canvas size.
 - **No cross-game or cross-kit imports.** Anything two games need moves to

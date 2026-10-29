@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { createSession, GameFrame, useCanvasGame } from '../../core';
 import frameStyles from '../../core/game-frame.module.css';
-import { createCardWorld, syncCardSprites } from '../../kits/cards';
+import { createCardWorld, dragProbe, rectContains, syncCardSprites } from '../../kits/cards';
 import { playCardSfx } from '../../shared';
 import {
   displayScore,
@@ -30,13 +30,11 @@ import {
 } from './rules';
 import {
   cardPoint,
-  dragProbe,
   drawTable,
   dropZones,
   isOverStock,
   pickCard,
   placements,
-  rectContains,
   solitaireLayout,
   startVictory,
   stepVictory,

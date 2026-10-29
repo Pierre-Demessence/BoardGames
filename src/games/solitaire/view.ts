@@ -9,36 +9,18 @@ import type { Canvas2DRenderContext } from '@pierre/ecs/modules/render-canvas2d'
 import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
 import type { Point, Size } from '../../core';
-import type { Card, CardPlacement, TableLayout } from '../../kits/cards';
+import type { Card, CardPlacement, DragView, Rect, TableLayout } from '../../kits/cards';
 import type { PileRef, SolitaireState } from './rules';
 
 import { Canvas2DRenderer } from '@pierre/ecs/modules/render-canvas2d';
 
 import { drawBanner, drawSlot } from '../../core';
-import {
-  computeTableLayout,
-  DRAG_FAN_RATIO,
-  DRAG_ORDER_BUMP,
-  fanColumn,
-} from '../../kits/cards';
+import { computeTableLayout, fanColumn, floatDraggedCards, rectContains } from '../../kits/cards';
 import { FOUNDATIONS, TABLEAU_COLUMNS } from './rules';
-
-export interface Rect {
-  h: number;
-  w: number;
-  x: number;
-  y: number;
-}
 
 export interface DropZone {
   pile: PileRef;
   rect: Rect;
-}
-
-/** Cards being dragged: the top-left of the first one, and the cards in order. */
-export interface DragView {
-  cards: readonly Card[];
-  position: Point;
 }
 
 export interface VictoryCard {
@@ -97,11 +79,6 @@ export function cardPoint(
   return { x: base.x, y: tableauYs(state, layout, pile.index)[index] ?? base.y };
 }
 
-export function rectContains(rect: Rect, point: Point): boolean {
-  return point.x >= rect.x && point.x <= rect.x + rect.w
-    && point.y >= rect.y && point.y <= rect.y + rect.h;
-}
-
 /** The pickable card under `point` (topmost first): its pile and index. */
 export function pickCard(
   state: SolitaireState,
@@ -156,11 +133,6 @@ export function dropZones(state: SolitaireState, layout: TableLayout): DropZone[
   return zones;
 }
 
-/** The point tested against the drop zones: the middle of the first dragged card. */
-export function dragProbe(drag: DragView, layout: TableLayout): Point {
-  return { x: drag.position.x + layout.cardW / 2, y: drag.position.y + layout.cardH / 2 };
-}
-
 /** Every card's sprite position and paint order; dragged cards float above, fanned. */
 export function placements(
   state: SolitaireState,
@@ -187,18 +159,8 @@ export function placements(
     pile.forEach((card, i) => place(card, { x, y: ys[i]! }));
   });
 
-  if (drag) {
-    const fan = Math.round(layout.cardH * DRAG_FAN_RATIO);
-    const byId = new Map(result.map(p => [p.card.id, p]));
-    drag.cards.forEach((card, i) => {
-      const placement = byId.get(card.id);
-      if (!placement)
-        return;
-      placement.x = drag.position.x;
-      placement.y = drag.position.y + i * fan;
-      placement.order = DRAG_ORDER_BUMP + i;
-    });
-  }
+  if (drag)
+    floatDraggedCards(result, drag, layout.cardH);
   return result;
 }
 

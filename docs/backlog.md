@@ -7,14 +7,11 @@ Next ID: B23
 ## Bugs
 
 - B13 Blackjack ignores a dealer natural: `checkNaturalBlackjack` in `src/games/blackjack/game.ts` checks only the player's hand, so a 3-card player 21 against a dealer blackjack is a push instead of a loss.
-- B15 Deep columns run off the bottom of the canvas, mostly in Spider: `computeLayout` in `src/shared/layout.ts` sizes cards with its own tight fan ratios (0.05 / 0.18), while the games fan with `FAN_FACE_DOWN_RATIO` / `FAN_FACE_UP_RATIO` (0.125 / 0.3).
 - B16 The canvas ignores window resizes and `devicePixelRatio`: each game measures the viewport once on mount, and the backing store equals the CSS size, so cards are blurry at 125–150 % display scaling.
-- B17 Spider clears a K–A run that includes face-down cards: `removeCompletedRuns` in `src/games/spider/game.ts` checks ranks and suits but not `faceUp`.
-- B18 Spider's stock gives wrong or no feedback: `drawStockDeck` in `src/games/spider/render.ts` shows "↻" on an empty stock though Spider never recycles, and a refused deal (an empty column) is silent.
 
 ## Tech debt
 
-- B3 Unit tests for the pure game logic in `src/games/blackjack/game.ts` and `src/games/spider/game.ts`; only `src/shared/` is tested.
+- B3 Unit tests for the pure game logic in `src/games/blackjack/game.ts`.
 - B4 Enable `noUncheckedIndexedAccess` in `tsconfig.json`: the engine now compiles with it, and the flag adds no errors here.
 - B19 Shared game core and card kit: rules as pure `apply(state, move)` over plain JSON state, one canvas hook for every game, and a card kit, so a new game reuses the plumbing each game copies today. Plan: `docs/plans/b19-game-core.md`.
 

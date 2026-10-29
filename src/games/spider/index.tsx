@@ -1,331 +1,215 @@
 /**
  * Spider Solitaire (1-suit) — Preact game component.
  *
- * Drag-and-drop + stock dealing on a canvas with ECS rendering.
- * The shell UI (buttons, hint text) is rendered declaratively;
- * high-frequency hint updates use a ref.
+ * The rules live in `rules.ts`, the geometry and drawing in `view.ts`. This
+ * component wires them to the session, the canvas hook and the engine's
+ * `DragDrop`, and keeps the hint text in the control bar.
  */
 
-import type { EntityId } from '@pierre/ecs';
+import type { DragSession } from '@pierre/ecs/modules/drag-drop';
 
-import type { GameResources } from '../../core';
-import type { CardLayout } from '../../shared/layout';
-import type { Card, GameState } from './game';
-import type { DragOverride } from './render';
+import type { GameProps, Point, Session, Size } from '../../core';
+import type { Card, TableLayout } from '../../kits/cards';
+import type { SpiderMove, SpiderState } from './rules';
+import type { DropZone } from './view';
 
-import { projectPointer } from '@pierre/ecs/modules/input';
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { DragDrop } from '@pierre/ecs/modules/drag-drop';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
-import {
-  BAR_HEIGHT,
+import { createSession, GameFrame, useCanvasGame } from '../../core';
+import frameStyles from '../../core/game-frame.module.css';
+import { createCardWorld, dragProbe, rectContains, syncCardSprites } from '../../kits/cards';
+import { playCardSfx } from '../../shared';
+import { canDragRun, dealBlock, RUNS_TO_WIN, spiderRules } from './rules';
+import { cardPoint, drawTable, dropZones, pickCard, placements, spiderLayout, stockRect } from './view';
 
-  GameShell,
-  makeWorld,
-  playCardSfx,
-} from '../../shared';
-import shellStyles from '../../shared/shell.module.css';
-import {
-  canDragRun,
-  canDropOnColumn,
-  cardPosition,
-  COLUMNS,
-  columnSlotPosition,
-  dealFromStock,
-  dealNewGame,
-  initLayout,
-  isWon,
-  removeCompletedRuns,
-  STOCK_DECK_H_RATIO,
-  STOCK_DECK_W_RATIO,
-  stockSlotPosition,
-} from './game';
-import { renderFrame, syncLayout } from './render';
+const CARD_COUNT = 104;
+/** Pointer travel (CSS px) before a press becomes a drag, so a click is not one. */
+const DRAG_THRESHOLD = 4;
 
-// ---------- types ----------
+const HINT_DEFAULT = 'Click the stock to deal · drag cards to build descending runs';
+const HINT_WON = 'You win! Press "New deal" to play again.';
+const HINT_EMPTY_COLUMN = 'Fill every empty column before dealing from the stock.';
+const HINT_EMPTY_STOCK = 'The stock is empty: no cards left to deal.';
 
-interface Drag {
+interface DragPayload {
   cards: Card[];
-  fromCol: number;
-  fromIndex: number;
-  grabX: number;
-  grabY: number;
-  pointerX: number;
-  pointerY: number;
+  column: number;
+  index: number;
 }
 
-// ---------- helpers (pure, outside component) ----------
-
-function inSlot(state: GameState, point: { x: number; y: number }, slot: { x: number; y: number }): boolean {
-  const { cardH, cardW } = state.layout;
-  return point.x >= slot.x && point.x <= slot.x + cardW
-    && point.y >= slot.y && point.y <= slot.y + cardH;
+/** Everything the handlers share; mutable, so it never triggers a render. */
+interface Runtime {
+  board: ReturnType<typeof createCardWorld>;
+  drag: DragDrop<DragPayload, DropZone>;
+  layout: TableLayout | null;
+  session: Session<SpiderState, SpiderMove>;
 }
 
-function pickCard(
-  state: GameState,
-  point: { x: number; y: number },
-): { col: number; index: number } | null {
-  for (let col = COLUMNS - 1; col >= 0; col--) {
-    const column = state.tableau[col]!;
-    for (let i = column.length - 1; i >= 0; i--) {
-      if (inSlot(state, point, cardPosition(state, col, i)))
-        return { col, index: i };
-    }
-  }
-  return null;
+function createRuntime(): Runtime {
+  const session = createSession(spiderRules, { options: undefined, undoable: true });
+  const runtime: Runtime = {
+    board: createCardWorld(CARD_COUNT),
+    layout: null,
+    session,
+    drag: new DragDrop<DragPayload, DropZone>({
+      threshold: DRAG_THRESHOLD,
+      contains: (zone, point) => rectContains(zone.rect, point),
+      targets: () => (runtime.layout ? dropZones(runtime.session.state, runtime.layout) : []),
+      accepts: (zone, payload) => spiderRules.apply(
+        runtime.session.state,
+        { from: payload.column, index: payload.index, to: zone.column, type: 'move' },
+        Date.now(),
+      ) !== null,
+      probe: (drag: DragSession<DragPayload>) => dragProbe(
+        { cards: drag.payload.cards, position: drag.position },
+        runtime.layout!,
+      ),
+    }),
+  };
+  return runtime;
 }
 
-function findTargetColumn(
-  state: GameState,
-  center: { x: number; y: number },
-  drag: Drag,
-): number | null {
-  const { layout } = state;
-  const { cardH, cardW } = layout;
-  for (let col = COLUMNS - 1; col >= 0; col--) {
-    if (col === drag.fromCol)
-      continue;
-    const column = state.tableau[col]!;
-    const slot = columnSlotPosition(layout, col);
-    const bottom = column.length === 0
-      ? slot.y + cardH
-      : cardPosition(state, col, column.length - 1).y + cardH;
-
-    const inCol = center.x >= slot.x && center.x <= slot.x + cardW
-      && center.y >= slot.y && center.y <= bottom + cardH * 0.4;
-
-    if (inCol && canDropOnColumn(drag.cards[0]!, column))
-      return col;
-  }
-  return null;
+function setText(element: HTMLElement | null, text: string): void {
+  if (element && element.textContent !== text)
+    element.textContent = text;
 }
 
-// ---------- component ----------
-
-export interface SpiderGameProps {
-  resources: GameResources;
-  onBack: () => void;
-}
-
-export function SpiderGame({ onBack, resources }: SpiderGameProps) {
+export function SpiderGame({ onBack, resources }: GameProps) {
   const { atlases, audio } = resources;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const runtimeRef = useRef<Runtime | null>(null);
+  runtimeRef.current ??= createRuntime();
+  const rt = runtimeRef.current;
 
-  // Mutable game state
-  const worldRef = useRef(makeWorld());
-  const stateRef = useRef<GameState | null>(null);
-  const dragRef = useRef<Drag | null>(null);
+  const hintRef = useRef<HTMLSpanElement>(null);
+  const [, setRevision] = useState(0);
+  const refresh = (): void => setRevision(r => r + 1);
 
-  // Refs for imperative text updates
-  const hintElRef = useRef<HTMLSpanElement | null>(null);
-
-  const [layout, setLayout] = useState<CardLayout | null>(null);
-
-  // Measure viewport and compute layout on mount
-  useEffect(() => {
-    setLayout(initLayout(window.innerWidth, window.innerHeight - BAR_HEIGHT));
-  }, []);
-
-  // ---- helpers ----
-
-  const playSfx = useCallback((kind: 'place' | 'slide') => {
-    playCardSfx(audio, kind);
-  }, [audio]);
-
-  const finishMove = useCallback((s: GameState) => {
-    if (isWon(s)) {
-      s.won = true;
-      if (hintElRef.current)
-        hintElRef.current.textContent = 'You win! Press "New deal" to play again.';
-    }
-  }, []);
-
-  const newDeal = useCallback(() => {
-    const world = makeWorld();
-    worldRef.current = world;
-    const state = dealNewGame((): EntityId => world.createEntity(), layout!);
-    stateRef.current = state;
-    dragRef.current = null;
-    if (hintElRef.current)
-      hintElRef.current.textContent = 'Click the stock to deal · drag cards to build descending runs';
-  }, [layout]);
-
-  const resolveDrop = useCallback((
-    s: GameState,
-    d: Drag,
-    sfx: (kind: 'place' | 'slide') => void,
-  ) => {
-    const { layout: lay } = s;
-    const center = {
-      x: d.pointerX - d.grabX + lay.cardW / 2,
-      y: d.pointerY - d.grabY + lay.cardH / 2,
-    };
-    const targetCol = findTargetColumn(s, center, d);
-
-    if (targetCol === null || targetCol === d.fromCol) {
-      sfx('slide');
-      return;
-    }
-
-    const source = s.tableau[d.fromCol]!;
-    source.splice(d.fromIndex, d.cards.length);
-    s.tableau[targetCol]!.push(...d.cards);
-
-    const newTop = source.at(-1);
-    if (newTop && !newTop.faceUp)
-      newTop.faceUp = true;
-
-    const { count, removedIds } = removeCompletedRuns(s);
-    for (const id of removedIds) worldRef.current.destroyEntity(id);
-    s.completed += count;
-
-    sfx('place');
-
-    if (count > 0 && hintElRef.current)
-      hintElRef.current.textContent = `Completed ${s.completed}/8 runs!`;
-
-    finishMove(s);
-  }, [finishMove]);
-
-  // ---- pointer events ----
-
-  const toWorld = useCallback((event: PointerEvent | MouseEvent) => {
-    return projectPointer(event, canvasRef.current!);
-  }, []);
-
-  const onPointerDown = useCallback((event: PointerEvent) => {
-    const state = stateRef.current;
-    if (!state || state.won)
-      return;
-    const point = toWorld(event);
-
-    // Stock click
-    const stockPos = stockSlotPosition(state.layout);
-    const sdw = Math.round(state.layout.cardW * STOCK_DECK_W_RATIO);
-    const sdh = Math.round(state.layout.cardH * STOCK_DECK_H_RATIO);
-    if (point.x >= stockPos.x && point.x <= stockPos.x + sdw
-      && point.y >= stockPos.y && point.y <= stockPos.y + sdh) {
-      if (state.stock.length >= COLUMNS && dealFromStock(state)) {
-        playSfx('slide');
-        const { count, removedIds } = removeCompletedRuns(state);
-        for (const id of removedIds) worldRef.current.destroyEntity(id);
-        state.completed += count;
-        finishMove(state);
-      }
-      return;
-    }
-
-    const hit = pickCard(state, point);
-    if (!hit)
-      return;
-    const column = state.tableau[hit.col]!;
-    if (!canDragRun(column, hit.index))
-      return;
-
-    const cards = column.slice(hit.index);
-    const origin = cardPosition(state, hit.col, hit.index);
-    dragRef.current = {
-      cards,
-      fromCol: hit.col,
-      fromIndex: hit.index,
-      grabX: point.x - origin.x,
-      grabY: point.y - origin.y,
-      pointerX: point.x,
-      pointerY: point.y,
-    };
-    canvasRef.current!.setPointerCapture(event.pointerId);
-  }, [toWorld, playSfx, finishMove]);
-
-  const onPointerMove = useCallback((event: PointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag)
-      return;
-    const point = toWorld(event);
-    drag.pointerX = point.x;
-    drag.pointerY = point.y;
-  }, [toWorld]);
-
-  const onPointerUp = useCallback((event: PointerEvent) => {
-    const drag = dragRef.current;
-    const state = stateRef.current;
-    if (!drag || !state)
-      return;
-    if (canvasRef.current!.hasPointerCapture(event.pointerId))
-      canvasRef.current!.releasePointerCapture(event.pointerId);
-    resolveDrop(state, drag, playSfx);
-    dragRef.current = null;
-  }, [resolveDrop, playSfx]);
-
-  // ---- rAF render loop ----
-
-  useEffect(() => {
-    if (!layout || !canvasRef.current)
-      return;
-    const ctx2d = canvasRef.current.getContext('2d')!;
-
-    let rafId = 0;
-    const loop = (): void => {
-      const state = stateRef.current;
-      if (!state) {
-        rafId = requestAnimationFrame(loop);
+  const { areaRef, canvasRef, invalidate } = useCanvasGame({
+    onPointerDown: point => onPointerDown(point),
+    onPointerUp: point => onPointerUp(point),
+    draw(ctx, size) {
+      const layout = rt.layout;
+      if (!layout)
         return;
-      }
+      const dragging = rt.drag.session;
+      const cards = placements(
+        rt.session.state,
+        layout,
+        dragging?.started ? { cards: dragging.payload.cards, position: dragging.position } : null,
+      );
+      syncCardSprites(rt.board.world, rt.board.entityOf, cards, layout);
+      drawTable(ctx, size, layout, rt.session.state, rt.board.world, atlases, rt.session.status === 'won');
+    },
+    onPointerCancel() {
+      rt.drag.cancel();
+      invalidate();
+    },
+    onPointerMove(point) {
+      rt.drag.move(point);
+      if (rt.drag.session?.started)
+        invalidate();
+    },
+    onResize(size: Size) {
+      rt.layout = spiderLayout(size);
+    },
+  });
 
-      const drag = dragRef.current;
-      const dragOverride: DragOverride | null = drag
-        ? {
-            cards: drag.cards,
-            fromCol: drag.fromCol,
-            fromIndex: drag.fromIndex,
-            grabX: drag.grabX,
-            grabY: drag.grabY,
-            pointerX: drag.pointerX,
-            pointerY: drag.pointerY,
-          }
-        : null;
+  function setHint(text: string): void {
+    setText(hintRef.current, text);
+  }
 
-      syncLayout(worldRef.current, state, dragOverride);
-      renderFrame(ctx2d, worldRef.current, atlases, state);
-      rafId = requestAnimationFrame(loop);
-    };
-    rafId = requestAnimationFrame(loop);
+  /** What follows every applied move: the hint, the Undo button and a new frame. */
+  function afterMove(completedBefore: number): void {
+    const { completed } = rt.session.state;
+    if (rt.session.status === 'won')
+      setHint(HINT_WON);
+    else if (completed > completedBefore)
+      setHint(`Completed ${completed}/${RUNS_TO_WIN} runs!`);
+    else
+      setHint(HINT_DEFAULT);
+    refresh();
+    invalidate();
+  }
 
-    return () => cancelAnimationFrame(rafId);
-  }, [layout, atlases]);
+  function newDeal(): void {
+    rt.session.newGame();
+    rt.board = createCardWorld(CARD_COUNT);
+    rt.drag.cancel();
+    setHint(HINT_DEFAULT);
+    refresh();
+    invalidate();
+  }
 
-  // ---- pointer event binding ----
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas)
+  function undo(): void {
+    if (!rt.session.undo())
       return;
-    const ctrl = new AbortController();
-    const sig = ctrl.signal;
-    canvas.addEventListener('pointerdown', onPointerDown, { signal: sig });
-    canvas.addEventListener('pointermove', onPointerMove, { signal: sig });
-    canvas.addEventListener('pointerup', onPointerUp, { signal: sig });
-    canvas.addEventListener('pointercancel', onPointerUp, { signal: sig });
-    return () => ctrl.abort();
-  }, [layout, onPointerDown, onPointerMove, onPointerUp]);
+    rt.drag.cancel();
+    playCardSfx(audio, 'slide');
+    setHint(HINT_DEFAULT);
+    refresh();
+    invalidate();
+  }
 
-  // Initial deal once layout is known
+  function onPointerDown(point: Point): void {
+    const layout = rt.layout;
+    if (!layout || rt.session.status !== 'playing')
+      return;
+    const state = rt.session.state;
+    if (rectContains(stockRect(layout), point)) {
+      const completedBefore = state.completed;
+      if (rt.session.apply({ type: 'deal' })) {
+        playCardSfx(audio, 'slide');
+        afterMove(completedBefore);
+      }
+      else {
+        setHint(dealBlock(state) === 'empty-column' ? HINT_EMPTY_COLUMN : HINT_EMPTY_STOCK);
+      }
+      return;
+    }
+    const hit = pickCard(state, layout, point);
+    const column = hit ? state.tableau[hit.column] : undefined;
+    if (!hit || !column || !canDragRun(column, hit.index))
+      return;
+    const origin = cardPoint(state, layout, hit.column, hit.index);
+    rt.drag.begin({ cards: column.slice(hit.index), column: hit.column, index: hit.index }, point, origin);
+  }
+
+  function onPointerUp(point: Point): void {
+    const drop = rt.drag.end(point);
+    if (!drop)
+      return;
+    const completedBefore = rt.session.state.completed;
+    const applied = drop.target !== null && rt.session.apply({
+      from: drop.payload.column,
+      index: drop.payload.index,
+      to: drop.target.column,
+      type: 'move',
+    });
+    if (applied) {
+      playCardSfx(audio, 'place');
+      afterMove(completedBefore);
+    }
+    else {
+      playCardSfx(audio, 'slide');
+      invalidate();
+    }
+  }
+
   useEffect(() => {
-    if (layout)
-      newDeal();
-  }, [layout]);
-
-  if (!layout)
-    return null;
+    setHint(HINT_DEFAULT);
+  }, []);
 
   return (
-    <GameShell
+    <GameFrame
+      areaRef={areaRef}
       canvasRef={canvasRef}
-      canvasW={layout.canvasW}
-      canvasH={layout.canvasH}
       onBack={onBack}
       onNewDeal={newDeal}
+      onUndo={undo}
+      undoDisabled={!rt.session.canUndo}
     >
-      <span ref={hintElRef} class={shellStyles.hint} />
-    </GameShell>
+      <span ref={hintRef} class={frameStyles.hint} />
+    </GameFrame>
   );
 }

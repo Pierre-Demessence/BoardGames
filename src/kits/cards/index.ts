@@ -1,5 +1,6 @@
 export type { Color, Suit } from './cards';
 export type { Card, DeckSpec } from './deck';
+export type { DragView, Rect } from './drag';
 export type { Point, TableLayout } from './layout';
 export type { CardPlacement } from './sprites';
 
@@ -17,5 +18,6 @@ export {
   TABLEAU_Y_GAP,
 } from './constants';
 export { makeDeck } from './deck';
+export { dragProbe, floatDraggedCards, rectContains } from './drag';
 export { computeTableLayout, fanColumn, rowPositions } from './layout';
 export { createCardWorld, syncCardSprites } from './sprites';
