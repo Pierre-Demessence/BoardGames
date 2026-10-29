@@ -47,7 +47,8 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   `index.tsx` (the thin Preact component: session, canvas hook, `DragDrop` or
   buttons, extra controls), with `*.test.ts` beside them.
 - `assets/` — Kenney asset packs (CC0), imported with `?url`.
-- `docs/` — [`backlog.md`](docs/backlog.md) (all open work),
+- `docs/` — [`roadmap.md`](docs/roadmap.md) (milestone order and what finishes
+  each), [`backlog.md`](docs/backlog.md) (all open work),
   [`decisions.md`](docs/decisions.md) (why the design is the way it is) and `plans/`
   (exists only while a plan is in progress).
 
@@ -70,6 +71,9 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   listeners and the frame loop, and cleans up on unmount; a game draws in CSS
   pixels and calls `invalidate()` after it changes something. Mutable runtime
   (session, drag, timers) sits in a `useRef`.
+- **Small PC screens.** Every game stays playable in a 1280×600 browser viewport
+  (a 1280×720 or 1366×768 screen minus browser chrome). Phones and touch are out
+  of scope (B30).
 - **Styles live in CSS modules** (`*.module.css`). Inline `style` is only for
   computed values such as the canvas size.
 - **No cross-game or cross-kit imports.** Anything two games need moves to
