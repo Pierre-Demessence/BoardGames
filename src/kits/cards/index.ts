@@ -14,9 +14,6 @@ export {
   FAN_FACE_DOWN_RATIO,
   FAN_FACE_UP_RATIO,
   HAND_CARD_OVERLAP,
-  OFF_SCREEN_X,
-  OFF_SCREEN_Y,
-  OFF_SCREEN_Y_STEP,
   TABLEAU_Y_GAP,
 } from './constants';
 export { makeDeck } from './deck';

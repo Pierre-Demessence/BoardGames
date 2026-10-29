@@ -18,14 +18,5 @@ export const DRAG_FAN_RATIO = 0.3;
 /** Render-order bump for dragged cards so they paint on top. */
 export const DRAG_ORDER_BUMP = 100_000;
 
-/** X coordinate used to place cards off the visible canvas. */
-export const OFF_SCREEN_X = -200;
-
-/** Base Y coordinate for off-screen cards; increment per card for stack illusion. */
-export const OFF_SCREEN_Y = -200;
-
-/** Per-card Y offset when stacking off-screen cards. */
-export const OFF_SCREEN_Y_STEP = 2;
-
 /** Horizontal overlap between adjacent cards in a hand (fraction of card width). */
 export const HAND_CARD_OVERLAP = 0.35;

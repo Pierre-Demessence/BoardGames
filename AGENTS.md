@@ -74,7 +74,7 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   computed values such as the canvas size.
 - **No cross-game or cross-kit imports.** Anything two games need moves to
   `src/core/` (any game) or the kit for their kind of game (`src/kits/cards/`).
-- **Shared constants** (card layout ratios, drag and off-screen offsets) live in
+- **Shared constants** (card layout ratios, drag offsets) live in
   `src/kits/cards/constants.ts`; game-specific ones (dealer delay, auto-win delay)
   stay in their game.
 - **SFX playback is non-essential.** `playCardSfx()` no-ops without audio and

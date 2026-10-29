@@ -2,12 +2,19 @@
 
 Everything not done, one line each. Delete a line in the commit that delivers it.
 
-Next ID: B23
+Next ID: B29
 
 ## Bugs
 
+- B23 Cards stay blurry after the window moves to a monitor with a different display scaling until it is resized; `useCanvasGame` in `src/core/use-canvas-game.ts` reads `devicePixelRatio` only on resize.
+- B24 In a short window Blackjack's result banner can cover the bottom of the dealer's cards; `drawBanner` placement in `blackjackLayout` / `drawTable` in `src/games/blackjack/view.ts`.
+
 ## Tech debt
 
+- B25 Solitaire's drag `accepts` check calls `solitaireRules.apply` with `Date.now()` instead of the session clock; `src/games/solitaire/index.tsx`.
+- B26 A canvas collapsed to about 20 px or less can produce invalid card positions; `computeTableLayout` and `fanColumn` in `src/kits/cards/layout.ts`.
+- B27 The "← Games" button on the "Failed to load" screen has no styling; `GameScreen` in `src/core/app.tsx`.
+- B28 Solitaire imports `core/game-frame.module.css` directly instead of going through `src/core/index.ts`; `src/games/solitaire/index.tsx`.
 - B4 Enable `noUncheckedIndexedAccess` in `tsconfig.json`: the engine now compiles with it, and the flag adds no errors here.
 
 ## Features
