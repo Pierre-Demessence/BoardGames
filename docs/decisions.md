@@ -21,3 +21,11 @@ A card's `id` is its index in the deal, a plain number. The view creates one ent
 ## The audio context resumes on `pointerdown` and `pointerup`
 
 Browsers only let an audio context play after a user gesture. A mouse `pointerdown` can arrive before the browser counts it as user activation, so the first-press listener also waits for `pointerup` and stops once the context is running.
+
+## Dice rolls cannot be undone
+
+The dice's random generator position (`rngState`) is part of the game state, so every roll is reproducible from a state. Undoing a roll would still show what the dice are about to land on: roll, undo, then hold differently or score before rolling again. A move marked `isIrreversible` in the session config (Yahtzee: `roll`) clears the history, so Undo only reaches back to the last roll: holds and the scoring choice.
+
+## Yahtzee's scorecard is DOM beside the canvas
+
+The scorecard is a Preact table next to the canvas, not drawn on it. Text stays crisp at any pixel density, open boxes are real buttons with hover and keyboard focus, and the canvas stays the dice only. The cost is that `GameFrame` has a `side` slot and the canvas area is narrower; a canvas-drawn card would need hit testing and focus handling by hand.

@@ -5,9 +5,10 @@ global agent instructions.
 
 ## What this is
 
-A browser collection of card games: Klondike Solitaire, 1-suit Spider and
-Blackjack. Preact renders the menu and each game's control bar; the cards are
-drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
+A browser collection of card and dice games: Klondike Solitaire, 1-suit Spider,
+Blackjack and solo Yahtzee. Preact renders the menu, each game's control bar and
+Yahtzee's scorecard; the cards and dice are drawn on a canvas through the user's
+`@pierre/ecs` engine. Private and pre-v1.
 
 ## Commands
 
@@ -28,24 +29,33 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   `App` switches between the hub and the selected game and resumes the
   `AudioContext` on the first pointer press), `registry.ts` (`GAMES`: id, name,
   description and a lazy `load()` per game), `resources.ts` (`GameResources`:
-  atlases, plus audio that is `null` when it fails to load), `rules.ts` (the
+  the card and dice atlases in one registry, plus card and dice audio that are `null`
+  when a clip fails to load), `rules.ts` (the
   `GameRules` contract) and `session.ts` (`createSession`: current state, `canApply`, undo
-  history, `newGame`, injectable clock and seed source), `use-canvas-game.ts` (the
+  history, `isIrreversible` moves that clear it, `newGame`, injectable clock and seed
+  source), `use-canvas-game.ts` (the
   canvas hook: sizing by `ResizeObserver` at `devicePixelRatio`, pointer events in
   CSS pixels, frames only on `invalidate()` or while `animating()`),
-  `game-frame.tsx` (control bar with Back, New deal and an optional Undo, plus the
-  area the hook measures) and `draw.ts` (`roundRect`, `drawSlot`, `drawBanner`).
+  `game-frame.tsx` (control bar with Back, New deal and an optional Undo, an optional
+  `side` panel left of the area the hook measures) and `draw.ts` (`roundRect`,
+  `drawSlot`, `drawBanner`).
 - `src/kits/cards/` — what card games use, re-exported by its `index.ts` barrel: the
   plain-JSON card model and `makeDeck`, atlas and frame names, card SFX
   (`loadCardAudio`, `playCardSfx`), table layout
   (`computeTableLayout`, `fanColumn`, `rowPositions`), layout constants,
   `createCardWorld` and `syncCardSprites`, and the drag geometry (`rectContains`,
   `dragProbe`, `floatDraggedCards`). A kit imports neither another kit nor a game.
+- `src/kits/dice/` — what dice games use, re-exported by its `index.ts` barrel: the
+  plain-JSON die model (`makeDice`, `rollDice` from a `SeededRng` state, `toggleHold`),
+  the dice atlases and frame names, dice SFX (`loadDiceAudio`, `playDiceSfx`),
+  `createDiceWorld` and `syncDiceSprites`.
 - `src/hub.tsx` — the game selector; it lists `GAMES`.
 - `src/games/<name>/` — one folder per game: `rules.ts` (the `GameRules` and
   per-game helpers), `view.ts` (geometry, hit testing, sprites, drawing) and
   `index.tsx` (the thin Preact component: session, canvas hook, `DragDrop` or
-  buttons, extra controls), with `*.test.ts` beside them.
+  buttons, extra controls), with `*.test.ts` beside them. Yahtzee adds
+  `scorecard.tsx`: a DOM table beside the canvas (crisp text, hover and keyboard
+  focus), tested with `scorecard.test.tsx`.
 - `assets/` — Kenney asset packs (CC0), imported with `?url`.
 - `docs/` — [`roadmap.md`](docs/roadmap.md) (milestone order and what finishes
   each), [`backlog.md`](docs/backlog.md) (all open work),
@@ -62,11 +72,12 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
   illegal move; time and randomness enter only through `now` and `seed`, never
   `Date.now()` or `Math.random()`. Card ids are indexes in the deal; the view maps
   them to entities.
-- **Cards render through ECS.** A game's view creates one entity per card
+- **Cards and dice render through ECS.** A game's view creates one entity per card
   id with `createCardWorld()` on each new game; each frame `syncCardSprites()`
   writes `PositionDef`, `RenderableDef` and `RenderOrderDef` from the state, then
   the engine's `Canvas2DRenderer` draws. Solitaire's victory animation places the
-  cards itself.
+  cards itself. Dice work the same with `createDiceWorld()` and `syncDiceSprites()`,
+  which also write a `RotationDef` for a tumbling die; the tumble is view-only.
 - **Canvas games use `useCanvasGame`.** The hook owns sizing, the pointer
   listeners and the frame loop, and cleans up on unmount; a game draws in CSS
   pixels and calls `invalidate()` after it changes something. Mutable runtime
@@ -77,7 +88,8 @@ drawn on a canvas through the user's `@pierre/ecs` engine. Private and pre-v1.
 - **Styles live in CSS modules** (`*.module.css`). Inline `style` is only for
   computed values such as the canvas size.
 - **No cross-game or cross-kit imports.** Anything two games need moves to
-  `src/core/` (any game) or the kit for their kind of game (`src/kits/cards/`).
+  `src/core/` (any game) or the kit for their kind of game (`src/kits/cards/`,
+  `src/kits/dice/`).
 - **Shared constants** (card layout ratios, drag offsets) live in
   `src/kits/cards/constants.ts`; game-specific ones (dealer delay, auto-win delay)
   stay in their game.

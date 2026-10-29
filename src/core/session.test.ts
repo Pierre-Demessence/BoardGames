@@ -105,6 +105,36 @@ describe('createSession', () => {
     expect(session.state.total).toBe(3);
   });
 
+  it('clears the history after an irreversible move, and undo works again for later moves', () => {
+    const session = createSession(counter, {
+      options: { start: 0 },
+      undoable: true,
+      isIrreversible: move => move === 5,
+    });
+    session.apply(1);
+    session.apply(5);
+    expect(session.state.total).toBe(6);
+    expect(session.canUndo).toBe(false);
+    expect(session.undo()).toBe(false);
+
+    session.apply(2);
+    expect(session.canUndo).toBe(true);
+    expect(session.undo()).toBe(true);
+    expect(session.state.total).toBe(6);
+    expect(session.canUndo).toBe(false);
+  });
+
+  it('keeps the history when an irreversible move is illegal', () => {
+    const session = createSession(counter, {
+      options: { start: 0 },
+      undoable: true,
+      isIrreversible: move => move === 50,
+    });
+    session.apply(1);
+    expect(session.apply(50)).toBe(false);
+    expect(session.canUndo).toBe(true);
+  });
+
   it('newGame() takes the next seed and clears the history', () => {
     const { session, setTime } = makeSession();
     session.apply(2);

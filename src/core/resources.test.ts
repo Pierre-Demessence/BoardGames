@@ -4,9 +4,13 @@ import { loadResources, resumeOnFirstPress } from './resources';
 
 vi.mock('../kits/cards/atlas', () => ({ loadCardAtlases: vi.fn() }));
 vi.mock('../kits/cards/audio', () => ({ loadCardAudio: vi.fn() }));
+vi.mock('../kits/dice/atlas', () => ({ loadDiceAtlases: vi.fn() }));
+vi.mock('../kits/dice/audio', () => ({ loadDiceAudio: vi.fn() }));
 
 const { loadCardAtlases } = await import('../kits/cards/atlas');
 const { loadCardAudio } = await import('../kits/cards/audio');
+const { loadDiceAtlases } = await import('../kits/dice/atlas');
+const { loadDiceAudio } = await import('../kits/dice/audio');
 
 interface FakeAudioContext {
   close: ReturnType<typeof vi.fn>;
@@ -36,8 +40,12 @@ function installAudioContext(): void {
 
 beforeEach(() => {
   installAudioContext();
-  vi.mocked(loadCardAtlases).mockResolvedValue({ atlas: true } as never);
+  vi.mocked(loadCardAtlases).mockImplementation(async (_loader, _signal, registry) => {
+    registry.add('cards', {} as never, {});
+  });
+  vi.mocked(loadDiceAtlases).mockResolvedValue(undefined);
   vi.mocked(loadCardAudio).mockResolvedValue({ audio: true } as never);
+  vi.mocked(loadDiceAudio).mockResolvedValue({ dice: true } as never);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -50,24 +58,41 @@ describe('loadResources', () => {
   it('returns atlases, audio and the audio context', async () => {
     const resources = await loadResources(new AbortController().signal);
     expect(resources.audio).toEqual({ audio: true });
+    expect(resources.diceAudio).toEqual({ dice: true });
     expect(resources.audioCtx).toBe(contexts[0]);
     expect(contexts[0]!.close).not.toHaveBeenCalled();
+  });
+
+  it('hands one atlas registry to the card and the dice loaders', async () => {
+    const resources = await loadResources(new AbortController().signal);
+    expect(vi.mocked(loadCardAtlases).mock.lastCall![2]).toBe(resources.atlases);
+    expect(vi.mocked(loadDiceAtlases).mock.lastCall![2]).toBe(resources.atlases);
   });
 
   it('runs silent when the clips fail to load', async () => {
     vi.mocked(loadCardAudio).mockRejectedValue(new Error('decode failed'));
     const resources = await loadResources(new AbortController().signal);
-    expect(resources.atlases).toEqual({ atlas: true });
+    expect(resources.atlases).toBeDefined();
     expect(resources.audio).toBeNull();
+    expect(resources.diceAudio).toBeNull();
     expect(resources.audioCtx).toBeNull();
     expect(contexts[0]!.close).toHaveBeenCalled();
+  });
+
+  it('runs silent when only the dice clips fail to load', async () => {
+    vi.mocked(loadDiceAudio).mockRejectedValue(new Error('decode failed'));
+    const resources = await loadResources(new AbortController().signal);
+    expect(resources.audio).toBeNull();
+    expect(resources.diceAudio).toBeNull();
+    expect(resources.audioCtx).toBeNull();
   });
 
   it('runs silent when the browser has no audio context', async () => {
     (window as unknown as { AudioContext: unknown }).AudioContext = undefined;
     const resources = await loadResources(new AbortController().signal);
-    expect(resources.atlases).toEqual({ atlas: true });
+    expect(resources.atlases).toBeDefined();
     expect(resources.audio).toBeNull();
+    expect(resources.diceAudio).toBeNull();
     expect(resources.audioCtx).toBeNull();
   });
 

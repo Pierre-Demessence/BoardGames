@@ -1,0 +1,55 @@
+.card {
+  width: 100%;
+  border-collapse: collapse;
+  font: 13px system-ui;
+  color: #cde;
+}
+
+.card th,
+.card td {
+  height: 27px;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.card th {
+  font-weight: 400;
+  text-align: left;
+}
+
+.card td {
+  width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sum th,
+.sum td {
+  color: #aac;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.total th,
+.total td {
+  font-weight: 700;
+  color: #ffe14d;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* An open box that can be scored now: italic number and a dashed outline. */
+.open {
+  min-width: 52px;
+  padding: 2px 8px;
+  font: italic 13px system-ui;
+  color: #fff;
+  background: rgba(63, 191, 143, 0.18);
+  border: 1px dashed #3fbf8f;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.open:hover,
+.open:focus-visible {
+  background: #1f6b4f;
+  border-style: solid;
+}

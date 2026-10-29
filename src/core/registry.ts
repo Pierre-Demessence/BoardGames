@@ -38,4 +38,10 @@ export const GAMES: GameDef[] = [
     description: 'Classic 21 — beat the dealer without busting',
     load: () => import('../games/blackjack/index.tsx').then(m => m.BlackjackGame),
   },
+  {
+    id: 'yahtzee',
+    name: 'Yahtzee',
+    description: 'Five dice, 13 turns — fill the scorecard',
+    load: () => import('../games/yahtzee/index.tsx').then(m => m.YahtzeeGame),
+  },
 ];

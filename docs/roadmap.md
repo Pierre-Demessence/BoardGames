@@ -11,10 +11,6 @@ Next ID: M5
 
 The first game that is not cards, and the first with more than one player.
 
-- M1.1 Dice kit and solo Yahtzee (B20): `src/kits/dice/` holds the die model, rolling
-  and holding with the seeded RNG, and the Kenney dice sprites. The RNG position
-  (`SeededRng.state`) lives in the game state, so undo gives the same roll back and
-  a save continues the same sequence.
 - M1.2 Players in core: a game's state says whose turn it is; each seat is a human
   or the computer, picked before the deal; the session plays computer turns at a
   readable pace, the way Blackjack's dealer plays today. Yahtzee takes 1 to 4 seats.

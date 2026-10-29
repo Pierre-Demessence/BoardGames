@@ -1,11 +1,12 @@
 /**
- * Card atlas — loads the Kenney card spritesheets once for all games.
+ * Card atlas — adds the Kenney card spritesheets to the shared registry.
  */
 
 import type { AssetLoader } from '@pierre/ecs/modules/asset-loader';
+import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
 import { imageAsset, textAsset } from '@pierre/ecs/modules/asset-loader';
-import { parseTexturePackerAtlas, TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
+import { parseTexturePackerAtlas } from '@pierre/ecs/modules/texture-atlas';
 
 import backsSheetUrl from '../../../assets/kenney_boardgame-pack/Spritesheets/playingCardBacks.png?url';
 import backsXmlUrl from '../../../assets/kenney_boardgame-pack/Spritesheets/playingCardBacks.xml?url';
@@ -18,7 +19,8 @@ export const BACKS_ATLAS = 'backs';
 export async function loadCardAtlases(
   assetLoader: AssetLoader,
   signal: AbortSignal,
-): Promise<TextureAtlasRegistry> {
+  registry: TextureAtlasRegistry,
+): Promise<void> {
   const [cardsImg, cardsXml, backsImg, backsXml] = await Promise.all([
     assetLoader.load(imageAsset(cardsSheetUrl), { signal }),
     assetLoader.load(textAsset(cardsXmlUrl), { signal }),
@@ -26,7 +28,7 @@ export async function loadCardAtlases(
     assetLoader.load(textAsset(backsXmlUrl), { signal }),
   ]);
 
-  return new TextureAtlasRegistry()
+  registry
     .add(CARDS_ATLAS, cardsImg, parseTexturePackerAtlas(cardsXml).frames)
     .add(BACKS_ATLAS, backsImg, parseTexturePackerAtlas(backsXml).frames);
 }

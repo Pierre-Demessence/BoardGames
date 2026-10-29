@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { start } from './main.tsx';
 
-vi.mock('./kits/cards/atlas', () => ({ loadCardAtlases: vi.fn(async () => ({})) }));
+vi.mock('./kits/cards/atlas', () => ({ loadCardAtlases: vi.fn(async () => {}) }));
 vi.mock('./kits/cards/audio', () => ({ loadCardAudio: vi.fn(async () => ({})) }));
+vi.mock('./kits/dice/atlas', () => ({ loadDiceAtlases: vi.fn(async () => {}) }));
+vi.mock('./kits/dice/audio', () => ({ loadDiceAudio: vi.fn(async () => ({})) }));
 
 let closeSpy: ReturnType<typeof vi.fn>;
 let created: number;
@@ -43,7 +45,7 @@ describe('start', () => {
     let release!: () => void;
     vi.mocked(loadCardAtlases).mockImplementationOnce(
       () => new Promise((resolve) => {
-        release = () => resolve({} as never);
+        release = () => resolve();
       }),
     );
     const container = document.createElement('div');

@@ -11,11 +11,25 @@
   box-sizing: border-box;
 }
 
+/* Holds the side panel and the canvas area side by side. */
+.body {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.side {
+  flex: 0 0 260px;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+}
+
 /* The canvas hook measures this area and sizes the canvas to fill it. */
 .area {
   position: relative;
   flex: 1 1 0;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 

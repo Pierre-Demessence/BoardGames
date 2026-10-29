@@ -20,7 +20,7 @@ export interface Session<S, M> {
   undo: () => boolean;
 }
 
-export interface SessionConfig<O> {
+export interface SessionConfig<O, M = never> {
   options: O;
   /** Seed of the first game, instead of one from `newSeed`. */
   seed?: number;
@@ -28,6 +28,11 @@ export interface SessionConfig<O> {
   undoable: boolean;
   /** Milliseconds, handed to the rules. Defaults to `Date.now`. */
   clock?: () => number;
+  /**
+   * Whether `move` can never be taken back and hides what came before it: after it the
+   * history is cleared. For a move that reveals hidden information, such as a dice roll.
+   */
+  isIrreversible?: (move: M) => boolean;
   /** Source of seeds for `newGame()` without an argument. Defaults to a random 32-bit integer. */
   newSeed?: () => number;
 }
@@ -38,7 +43,7 @@ function randomSeed(): number {
 
 export function createSession<S, M, O>(
   rules: GameRules<S, M, O>,
-  config: SessionConfig<O>,
+  config: SessionConfig<O, M>,
 ): Session<S, M> {
   const clock = config.clock ?? Date.now;
   const newSeed = config.newSeed ?? randomSeed;
@@ -51,7 +56,9 @@ export function createSession<S, M, O>(
       const next = rules.apply(state, move, clock());
       if (next === null)
         return false;
-      if (config.undoable)
+      if (config.isIrreversible?.(move) === true)
+        history = [];
+      else if (config.undoable)
         history.push(state);
       state = next;
       return true;

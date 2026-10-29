@@ -1,6 +1,7 @@
 /**
  * The frame around a canvas game: the control bar (Back, New deal, optional
- * Undo and the game's own items) and the area the canvas hook fills.
+ * Undo and the game's own items), an optional side panel and the area the
+ * canvas hook fills.
  */
 
 import type { ComponentChildren, RefObject } from 'preact';
@@ -12,6 +13,10 @@ export interface GameFrameProps {
   canvasRef: RefObject<HTMLCanvasElement>;
   /** The game's own bar items, such as the score. */
   children?: ComponentChildren;
+  /** Label of the new-game button. */
+  newGameLabel?: string;
+  /** A panel left of the canvas area, such as a scorecard. */
+  side?: ComponentChildren;
   /** Greys out the Undo button, for a game with nothing to undo. */
   undoDisabled?: boolean;
   onBack: () => void;
@@ -24,11 +29,18 @@ export function GameFrame({
   areaRef,
   canvasRef,
   children,
+  newGameLabel = 'New deal',
   onBack,
   onNewDeal,
   onUndo,
+  side,
   undoDisabled = false,
 }: GameFrameProps) {
+  const area = (
+    <div ref={areaRef} class={styles.area}>
+      <canvas ref={canvasRef} class={styles.canvas} />
+    </div>
+  );
   return (
     <>
       <div class={styles.bar}>
@@ -44,7 +56,7 @@ export function GameFrame({
           aria-label="Start a new deal"
           onClick={onNewDeal}
         >
-          New deal
+          {newGameLabel}
         </button>
         {onUndo && (
           <button
@@ -58,9 +70,14 @@ export function GameFrame({
         )}
         {children}
       </div>
-      <div ref={areaRef} class={styles.area}>
-        <canvas ref={canvasRef} class={styles.canvas} />
-      </div>
+      {side
+        ? (
+            <div class={styles.body}>
+              <div class={styles.side}>{side}</div>
+              {area}
+            </div>
+          )
+        : area}
     </>
   );
 }

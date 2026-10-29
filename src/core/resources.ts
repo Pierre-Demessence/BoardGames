@@ -1,21 +1,24 @@
 /**
- * Resources every game needs: the card atlases (required) and the audio
- * (optional, `null` when the browser or a clip fails).
+ * Resources every game needs: the card and dice atlases (required) and the
+ * audio (optional, `null` when the browser or a clip fails).
  */
 
-import type { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
-
 import type { CardAudio } from '../kits/cards/audio';
+import type { DiceAudio } from '../kits/dice/audio';
 
 import { AssetLoader } from '@pierre/ecs/modules/asset-loader';
+import { TextureAtlasRegistry } from '@pierre/ecs/modules/texture-atlas';
 
 import { loadCardAtlases } from '../kits/cards/atlas';
 import { loadCardAudio } from '../kits/cards/audio';
+import { loadDiceAtlases } from '../kits/dice/atlas';
+import { loadDiceAudio } from '../kits/dice/audio';
 
 export interface GameResources {
   atlases: TextureAtlasRegistry;
   audio: CardAudio | null;
   audioCtx: AudioContext | null;
+  diceAudio: DiceAudio | null;
 }
 
 /**
@@ -27,17 +30,24 @@ export function closeResources(resources: Pick<GameResources, 'audioCtx'>): void
 
 /**
  * Loads the atlases, then tries the audio. A failed atlas rejects; a failed
- * audio context or clip leaves `audio` and `audioCtx` `null` so games run silent.
+ * audio context or clip leaves `audio`, `diceAudio` and `audioCtx` `null` so games run silent.
  */
 export async function loadResources(signal: AbortSignal): Promise<GameResources> {
   const assetLoader = new AssetLoader();
   const audioCtx = createAudioContext();
   try {
-    const [atlases, audio] = await Promise.all([
-      loadCardAtlases(assetLoader, signal),
+    const atlases = new TextureAtlasRegistry();
+    const [, , sounds] = await Promise.all([
+      loadCardAtlases(assetLoader, signal, atlases),
+      loadDiceAtlases(assetLoader, signal, atlases),
       audioCtx ? loadAudioOrNull(assetLoader, audioCtx, signal) : null,
     ]);
-    return { atlases, audio, audioCtx: audio ? audioCtx : null };
+    return {
+      atlases,
+      audio: sounds?.audio ?? null,
+      audioCtx: sounds ? audioCtx : null,
+      diceAudio: sounds?.diceAudio ?? null,
+    };
   }
   catch (error) {
     audioCtx?.close().catch(() => {});
@@ -87,9 +97,13 @@ async function loadAudioOrNull(
   assetLoader: AssetLoader,
   audioCtx: AudioContext,
   signal: AbortSignal,
-): Promise<CardAudio | null> {
+): Promise<{ audio: CardAudio; diceAudio: DiceAudio } | null> {
   try {
-    return await loadCardAudio(assetLoader, audioCtx, signal);
+    const [audio, diceAudio] = await Promise.all([
+      loadCardAudio(assetLoader, audioCtx, signal),
+      loadDiceAudio(assetLoader, audioCtx, signal),
+    ]);
+    return { audio, diceAudio };
   }
   catch (error) {
     if (signal.aborted)

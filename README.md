@@ -1,6 +1,6 @@
 # 🎴 Board Games
 
-A collection of card games for the browser, built with Preact on the
+A collection of card and dice games for the browser, built with Preact on the
 `@pierre/ecs` engine.
 
 ## Games
@@ -12,9 +12,12 @@ A collection of card games for the browser, built with Preact on the
   King-to-Ace runs clear themselves; the stock deals one card to each column.
 - **Blackjack** — classic 21 against a dealer who draws to 17. Hit or stand; a
   natural blackjack ends the round at once.
+- **Yahtzee** — solo, five dice and 13 turns: roll up to three times, hold the
+  dice you want and fill the scorecard by the official rules, bonuses and joker
+  rule included.
 
-A menu lists the games, every game has Back and New deal buttons, and card
-sounds play when audio is available.
+A menu lists the games, every game has Back and New deal (New game in Yahtzee)
+buttons, and card and dice sounds play when audio is available.
 
 ## Setup
 
